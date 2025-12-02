@@ -6,7 +6,8 @@ const { dbConnect } = require("./config/config");
 const userRoute = require("./routes/routes.js");
 
 const app = express();
-const port = 3500;
+// const port = 3500;
+const port = 7000;
 
 // Middleware
 app.use(express.json());
