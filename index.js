@@ -18,7 +18,10 @@ app.use(express.static(path.join(__dirname, "public")));
 dbConnect();
 
 // Allowed origins
-const allowedOrigins = ["http://localhost:5173"];
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://api.bouncyboxstudio.in",
+];
 
 // CORS Setup
 app.use(
