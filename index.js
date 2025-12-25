@@ -43,7 +43,7 @@ app.use(
 app.use("/", userRoute);
 
 app.get("/", (req, res) => {
-  res.send("Hello from server");
+  res.send("Hello from bouncy box server");
 });
 
 app.listen(port, () => {
