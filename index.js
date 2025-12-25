@@ -20,7 +20,8 @@ dbConnect();
 // Allowed origins
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://api.bouncyboxstudio.in",
+  // "https://api.bouncyboxstudio.in",
+  "https://bouncyboxstudio.in",
 ];
 
 // CORS Setup
