@@ -3,7 +3,9 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const { dbConnect } = require("./config/config");
-const userRoute = require("./routes/routes.js");
+const userRoute = require("./routes/userRoutes.js");
+const adminLoginRoute = require("./routes/loginRoutes.js");
+const adminCategoryRoute = require("./routes/categoryRoutes.js");
 
 const app = express();
 const port = process.env.PORT;
@@ -18,29 +20,44 @@ app.use(express.static(path.join(__dirname, "public")));
 dbConnect();
 
 // Allowed origins
-const allowedOrigins = [
-  "http://localhost:5173",
-  // "https://api.bouncyboxstudio.in",
-  "https://bouncyboxstudio.in",
-];
+// const allowedOrigins = [
+//   "http://localhost:5173",
+//   // "https://api.bouncyboxstudio.in",
+//   "https://bouncyboxstudio.in",
+// ];
 
-// CORS Setup
+// // CORS Setup
+// app.use(
+//   cors({
+//     origin: function (origin, callback) {
+//       // allow requests with no origin (like Postman or curl)
+//       if (!origin) return callback(null, true);
+//       if (allowedOrigins.indexOf(origin) === -1) {
+//         const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
+//         return callback(new Error(msg), false);
+//       }
+//       return callback(null, true);
+//     },
+//     credentials: true,
+//   })
+// );
+
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // allow requests with no origin (like Postman or curl)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) === -1) {
-        const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
-        return callback(new Error(msg), false);
-      }
-      return callback(null, true);
-    },
+    origin: [
+      // "https://admin-panel.rajavrukshagroup.in",
+      "http://localhost:5173",
+      "http://localhost:3000",
+      // "https://rrplserver.rajavrukshagroup.in",
+      // "http://localhost:5173",
+    ],
     credentials: true,
   })
 );
 
-app.use("/", userRoute);
+app.use("/users", userRoute);
+app.use("/admin", adminLoginRoute);
+app.use("/admin/category", adminCategoryRoute);
 
 app.get("/", (req, res) => {
   res.send("Hello from bouncy box server");
