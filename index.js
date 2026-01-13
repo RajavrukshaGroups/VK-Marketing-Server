@@ -6,6 +6,8 @@ const { dbConnect } = require("./config/config");
 const userRoute = require("./routes/userRoutes.js");
 const adminLoginRoute = require("./routes/loginRoutes.js");
 const adminCategoryRoute = require("./routes/categoryRoutes.js");
+const membershipPlansRoutes = require("./routes/membershipPlansRoutes.js");
+const paymentRoutes = require("./routes/paymentRoutes.js");
 
 const app = express();
 const port = process.env.PORT;
@@ -58,6 +60,8 @@ app.use(
 app.use("/users", userRoute);
 app.use("/admin", adminLoginRoute);
 app.use("/admin/category", adminCategoryRoute);
+app.use("/admin/businessplans", membershipPlansRoutes);
+app.use("/admin/payment", paymentRoutes);
 
 app.get("/", (req, res) => {
   res.send("Hello from bouncy box server");

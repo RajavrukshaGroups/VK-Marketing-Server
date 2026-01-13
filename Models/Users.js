@@ -115,12 +115,26 @@ const UsersSchema = new mongoose.Schema(
     /* =========================
        MEMBERSHIP DETAILS
     ========================= */
-    membershipFee: { type: Number, default: 3000 },
-    membershipStatus: {
-      type: String,
-      enum: ["PENDING", "APPROVED", "REJECTED"],
-      default: "PENDING",
+    // membershipFee: { type: Number, default: 3000 },
+    membership: {
+      plan: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "MembershipPlan",
+        required: true,
+      },
+      status: {
+        type: String,
+        enum: ["PENDING", "ACTIVE", "EXPIRED", "CANCELLED"],
+        default: "PENDING",
+      },
+
+      startedAt: Date,
+
+      expiresAt: {
+        type: Date, // null for lifelong
+      },
     },
+
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
