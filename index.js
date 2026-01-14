@@ -13,7 +13,15 @@ const app = express();
 const port = process.env.PORT;
 
 // Middleware
-app.use(express.json());
+// app.use(express.json());
+
+app.use((req, res, next) => {
+  if (req.originalUrl === "/admin/payment/razorpay-webhook") {
+    next();
+  } else {
+    express.json()(req, res, next);
+  }
+});
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files
@@ -56,6 +64,11 @@ app.use(
     credentials: true,
   })
 );
+
+// app.post("/_test-webhook", (req, res) => {
+//   console.log("🔥 TEST WEBHOOK HIT");
+//   res.send("OK");
+// });
 
 app.use("/users", userRoute);
 app.use("/admin", adminLoginRoute);
