@@ -187,7 +187,8 @@ const createOrder = async (req, res) => {
 
     return res.json({
       success: true,
-      message:"Payment completed successfully.Your membership will be activated shortly",
+      message:
+        "Payment completed successfully.Your membership will be activated shortly",
       orderId: order.id,
       amount: plan.amount,
       key: process.env.RAZORPAY_KEY_ID,
@@ -209,32 +210,54 @@ const razorpayWebhook = async (req, res) => {
     /* =========================
        VERIFY WEBHOOK SIGNATURE
     ========================= */
+    console.log("🔔 Razorpay webhook HIT");
+
+    console.log(
+      "Webhook secret exists:",
+      !!process.env.RAZORPAY_WEBHOOK_SECRET
+    );
+
     const signature = req.headers["x-razorpay-signature"];
+
+    // const expectedSignature = crypto
+    //   .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
+    //   .update(JSON.stringify(req.body))
+    //   .digest("hex");
 
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
-      .update(JSON.stringify(req.body))
+      .update(req.body)
       .digest("hex");
 
+    console.log("Expected signature:", expectedSignature);
+
     if (signature !== expectedSignature) {
+      console.log("signature mismatched");
       return res.status(400).send("Invalid signature");
     }
+
+    console.log("✅ Signature verified");
 
     /* =========================
        HANDLE ONLY PAYMENT CAPTURE
     ========================= */
-    if (req.body.event !== "payment.captured") {
+    const event = JSON.parse(req.body.toString());
+    if (event.event !== "payment.captured") {
       return res.json({ received: true });
     }
 
-    const paymentEntity = req.body.payload.payment.entity;
+    const paymentEntity = event.payload.payment.entity;
 
     /* =========================
        FIND PAYMENT RECORD
     ========================= */
+    console.log("Looking for orderId:", paymentEntity.order_id);
+
     const payment = await Payment.findOne({
       "razorpay.orderId": paymentEntity.order_id,
     });
+
+    console.log("Payment found:", !!payment, payment?.status);
 
     // 🔒 Webhook retry protection
     if (!payment || payment.status === "SUCCESS") {
@@ -296,6 +319,8 @@ const razorpayWebhook = async (req, res) => {
     /* =========================
        CREATE USER
     ========================= */
+    console.log("Creating user for:", snapshot.email);
+
     const userId = await generateUserId();
     const plainPassword = generatePassword();
 
@@ -326,10 +351,13 @@ const razorpayWebhook = async (req, res) => {
           : null,
       },
     });
+    console.log("user created", newUser._id);
 
     /* =========================
        UPDATE PAYMENT RECORD
     ========================= */
+    console.log("Creating user for:", snapshot.email);
+
     payment.status = "SUCCESS";
     payment.user = newUser._id;
     payment.razorpay.paymentId = paymentEntity.id;
@@ -354,7 +382,157 @@ const razorpayWebhook = async (req, res) => {
   }
 };
 
+const fetchPaymentRecords = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
+    const search = req.query.search?.trim();
+
+    /* =========================
+       SEARCH FILTER
+    ========================= */
+    let query = {};
+
+    if (search) {
+      query = {
+        $or: [
+          {
+            "registrationSnapshot.companyName": {
+              $regex: search,
+              $options: "i",
+            },
+          },
+          { "registrationSnapshot.email": { $regex: search, $options: "i" } },
+          { "razorpay.orderId": { $regex: search, $options: "i" } },
+          { "razorpay.paymentId": { $regex: search, $options: "i" } },
+        ],
+      };
+    }
+
+    /* =========================
+       FETCH PAYMENTS
+    ========================= */
+    const [payments, totalPayments] = await Promise.all([
+      Payment.find(query)
+        .populate({
+          path: "user",
+          select: "userId companyName email mobileNumber",
+        })
+        .populate({
+          path: "membershipPlan",
+          select: "name amount durationInDays",
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+
+      Payment.countDocuments(query),
+    ]);
+
+    /* =========================
+       COLLECT REFERRER USER IDS
+    ========================= */
+    const referredUserIds = [
+      ...new Set(
+        payments
+          .map(
+            (p) => p.registrationSnapshot?.referral?.referredByUserId
+          )
+          .filter(Boolean)
+      ),
+    ];
+
+    /* =========================
+       FETCH REFERRER USERS
+    ========================= */
+    const referrers = referredUserIds.length
+      ? await User.find(
+          { userId: { $in: referredUserIds } },
+          "userId companyName"
+        ).lean()
+      : [];
+
+    const referrerMap = referrers.reduce((acc, r) => {
+      acc[r.userId] = r;
+      return acc;
+    }, {});
+
+    /* =========================
+       FORMAT RESPONSE
+    ========================= */
+    const formattedPayments = payments.map((p) => {
+      const referralSnapshot = p.registrationSnapshot?.referral;
+      const referrer =
+        referralSnapshot?.referredByUserId &&
+        referrerMap[referralSnapshot.referredByUserId];
+
+      return {
+        _id: p._id,
+        status: p.status,
+        amount: p.amount,
+        paidAt: p.paidAt,
+        createdAt: p.createdAt,
+
+        companyName: p.registrationSnapshot?.companyName,
+        email: p.registrationSnapshot?.email,
+        mobileNumber: p.registrationSnapshot?.mobileNumber,
+
+        membershipPlan: p.membershipPlan
+          ? {
+              _id: p.membershipPlan._id,
+              name: p.membershipPlan.name,
+              amount: p.membershipPlan.amount,
+              durationInDays: p.membershipPlan.durationInDays,
+            }
+          : null,
+
+        user: p.user
+          ? {
+              _id: p.user._id,
+              userId: p.user.userId,
+              companyName: p.user.companyName,
+              email: p.user.email,
+              mobileNumber: p.user.mobileNumber,
+            }
+          : null,
+
+        referral: {
+          source: referralSnapshot?.source || "ADMIN",
+          referredByUserId: referralSnapshot?.referredByUserId || null,
+          referredByCompanyName: referrer?.companyName || null,
+        },
+
+        razorpay: {
+          orderId: p.razorpay?.orderId,
+          paymentId: p.razorpay?.paymentId,
+        },
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: formattedPayments,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalPayments / limit),
+        totalPayments,
+        limit,
+      },
+    });
+  } catch (err) {
+    console.error("Fetch Payment Records Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch payment records",
+    });
+  }
+};
+
+
 module.exports = {
   createOrder,
   razorpayWebhook,
+  fetchPaymentRecords,
 };

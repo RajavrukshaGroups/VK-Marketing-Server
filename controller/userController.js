@@ -5,6 +5,8 @@ const { sendWelcomeMail } = require("../utils/mailer");
 const { generateUserId } = require("../utils/generateUserId");
 const { encrypt } = require("../utils/encryption");
 const { decrypt } = require("../utils/encryption");
+const Payment = require("../Models/Payment");
+const MembershipPlan = require("../Models/MembershipPlan");
 const MAX_REFERRALS_PER_USER = 4;
 
 const createUser = async (req, res) => {
@@ -216,70 +218,6 @@ const createUser = async (req, res) => {
   }
 };
 
-// const fetchAllUsers = async (req, res) => {
-//   try {
-//     const page = parseInt(req.query.page) || 1;
-//     const limit = 15;
-//     const skip = (page - 1) * limit;
-//     const search = req.query.search?.trim();
-
-//     /* =========================
-//        SEARCH QUERY
-//     ========================= */
-//     let query = {};
-
-//     if (search) {
-//       query = {
-//         $or: [
-//           { companyName: { $regex: search, $options: "i" } },
-//           { email: { $regex: search, $options: "i" } },
-//           { mobileNumber: { $regex: search, $options: "i" } },
-//           { userId: { $regex: search, $options: "i" } },
-//         ],
-//       };
-//     }
-
-//     /* =========================
-//        FETCH USERS
-//     ========================= */
-//     const [users, totalUsers] = await Promise.all([
-//       User.find(query)
-//         .populate("businessCategory", "name")
-//         .sort({ createdAt: -1 })
-//         .skip(skip)
-//         .limit(limit)
-//         .lean(),
-
-//       User.countDocuments(query),
-//     ]);
-
-//     /* =========================
-//        DECRYPT PASSWORD
-//     ========================= */
-//     const formattedUsers = users.map((u) => ({
-//       ...u,
-//       password: decrypt(u.password),
-//     }));
-
-//     return res.status(200).json({
-//       success: true,
-//       data: formattedUsers,
-//       pagination: {
-//         currentPage: page,
-//         totalPages: Math.ceil(totalUsers / limit),
-//         totalUsers,
-//         limit,
-//       },
-//     });
-//   } catch (err) {
-//     console.error("Fetch Users Error:", err);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to fetch users",
-//     });
-//   }
-// };
-
 const fetchAllUsers = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -309,6 +247,7 @@ const fetchAllUsers = async (req, res) => {
     const [users, totalUsers] = await Promise.all([
       User.find(query)
         .populate("businessCategory", "name")
+        .populate("membership.plan", "name amount")
         .populate({
           path: "referral.referredByUser",
           select: "userId companyName email mobileNumber", // Add more fields if needed
@@ -375,4 +314,260 @@ const fetchReferrerByUserId = async (req, res) => {
   }
 };
 
-module.exports = { createUser, fetchAllUsers, fetchReferrerByUserId };
+const editUsersDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user id",
+      });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const {
+      companyName,
+      proprietors,
+      address,
+      mobileNumber,
+      email,
+      businessCategory,
+      businessType,
+      majorCommodities,
+      gstNumber,
+      bankDetails,
+      isActive,
+      membershipPlan,
+    } = req.body;
+
+    /* =========================
+       DUPLICATE EMAIL / MOBILE
+    ========================= */
+    if (email || mobileNumber) {
+      const duplicateUser = await User.findOne({
+        _id: { $ne: id },
+        $or: [
+          email ? { email } : null,
+          mobileNumber ? { mobileNumber } : null,
+        ].filter(Boolean),
+      });
+
+      if (duplicateUser) {
+        return res.status(409).json({
+          success: false,
+          message: "Email or mobile number already exists",
+        });
+      }
+    }
+
+    /* =========================
+       FORMAT VALIDATIONS
+    ========================= */
+    if (
+      businessCategory &&
+      !mongoose.Types.ObjectId.isValid(businessCategory)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid business category",
+      });
+    }
+
+    if (gstNumber) {
+      const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+      if (!gstRegex.test(gstNumber)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid GST number format",
+        });
+      }
+    }
+
+    if (bankDetails) {
+      const { bankName, accountNumber, ifscCode } = bankDetails;
+
+      if (!bankName || !accountNumber || !ifscCode) {
+        return res.status(400).json({
+          success: false,
+          message: "Complete bank details are required",
+        });
+      }
+
+      if (accountNumber.length < 9) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid account number",
+        });
+      }
+
+      if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid IFSC code format",
+        });
+      }
+    }
+
+    if (membershipPlan && !mongoose.Types.ObjectId.isValid(membershipPlan)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid membership plan id",
+      });
+    }
+
+    /* =========================
+       APPLY UPDATES (SAFE)
+    ========================= */
+    if (companyName !== undefined) user.companyName = companyName;
+    if (proprietors !== undefined) user.proprietors = proprietors;
+    if (address !== undefined) user.address = address;
+    if (mobileNumber !== undefined) user.mobileNumber = mobileNumber;
+    if (email !== undefined) user.email = email;
+    if (businessCategory !== undefined)
+      user.businessCategory = businessCategory;
+    if (businessType !== undefined) user.businessType = businessType;
+    if (majorCommodities !== undefined)
+      user.majorCommodities = majorCommodities;
+    if (gstNumber !== undefined) user.gstNumber = gstNumber;
+    if (bankDetails !== undefined) user.bankDetails = bankDetails;
+    if (isActive !== undefined) user.isActive = isActive;
+
+    if (
+      membershipPlan &&
+      membershipPlan.toString() !== user.membership.plan.toString()
+    ) {
+      const plan = await MembershipPlan.findById(membershipPlan);
+      if (!plan) {
+        return res.status(400).json({
+          success: false,
+          message: "Membership plan not found",
+        });
+      }
+      user.membership.plan = membershipPlan;
+      user.membership.startedAt = new Date();
+      user.membership.expiresAt = null;
+
+      await Payment.findOneAndUpdate(
+        {
+          user: user._id,
+          status: "SUCCESS",
+        },
+        {
+          membershipPlan: plan._id,
+          amount: plan.amount,
+        },
+        {
+          sort: { createdAt: -1 },
+        }
+      );
+    }
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Member details updated successfully",
+    });
+  } catch (err) {
+    console.error("Edit User Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update member details",
+    });
+  }
+};
+
+const fetchUserById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    /* =========================
+       VALIDATE OBJECT ID
+    ========================= */
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user id",
+      });
+    }
+
+    /* =========================
+       FETCH USER
+    ========================= */
+    const user = await User.findById(id)
+      .populate("businessCategory", "name")
+      .populate({
+        path: "referral.referredByUser",
+        select: "userId companyName",
+      })
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    /* =========================
+       RESPONSE (SAFE DATA)
+    ========================= */
+    return res.status(200).json({
+      success: true,
+      data: {
+        _id: user._id,
+        userId: user.userId,
+
+        companyName: user.companyName,
+        proprietors: user.proprietors,
+
+        address: user.address,
+
+        mobileNumber: user.mobileNumber,
+        email: user.email,
+
+        businessCategory: user.businessCategory?._id || "",
+        businessCategoryName: user.businessCategory?.name || "",
+
+        businessType: user.businessType,
+        majorCommodities: user.majorCommodities,
+
+        gstNumber: user.gstNumber || "",
+
+        bankDetails: user.bankDetails || {
+          bankName: "",
+          accountNumber: "",
+          ifscCode: "",
+        },
+
+        referral: user.referral,
+
+        membership: user.membership,
+        isActive: user.isActive,
+
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (err) {
+    console.error("Fetch User By ID Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch user details",
+    });
+  }
+};
+
+module.exports = {
+  createUser,
+  fetchAllUsers,
+  fetchReferrerByUserId,
+  editUsersDetails,
+  fetchUserById,
+};
