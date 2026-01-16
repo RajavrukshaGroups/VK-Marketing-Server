@@ -18,5 +18,6 @@ router.post(
   PaymentController.razorpayWebhook
 );
 router.get("/get-payment-records", PaymentController.fetchPaymentRecords);
+// router.get("/filters", PaymentController.fetchPaymentFilters);
 
 module.exports = router;

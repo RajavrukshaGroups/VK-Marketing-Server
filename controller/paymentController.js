@@ -437,9 +437,7 @@ const fetchPaymentRecords = async (req, res) => {
     const referredUserIds = [
       ...new Set(
         payments
-          .map(
-            (p) => p.registrationSnapshot?.referral?.referredByUserId
-          )
+          .map((p) => p.registrationSnapshot?.referral?.referredByUserId)
           .filter(Boolean)
       ),
     ];
@@ -530,9 +528,69 @@ const fetchPaymentRecords = async (req, res) => {
   }
 };
 
+// const fetchPaymentFilters = async (req, res) => {
+//   try {
+//     const payments = await Payment.find(
+//       { status: "SUCCESS" },
+//       { registrationSnapshot: 1, membershipPlan: 1 }
+//     )
+//       .populate("membershipPlan", "name")
+//       .lean();
+
+//     const categoriesSet = new Set();
+//     const businessTypesSet = new Set();
+//     const statesSet = new Set();
+//     const districtsSet = new Set();
+//     const taluksSet = new Set();
+//     const membershipPlansMap = new Map();
+
+//     payments.forEach((p) => {
+//       const snap = p.registrationSnapshot;
+
+//       if (snap?.businessCategory) categoriesSet.add(snap.businessCategory);
+
+//       if (Array.isArray(snap?.businessType)) {
+//         snap.businessType.forEach((t) => businessTypesSet.add(t));
+//       }
+
+//       if (snap?.address?.state) statesSet.add(snap.address.state);
+//       if (snap?.address?.district) districtsSet.add(snap.address.district);
+//       if (snap?.address?.taluk) taluksSet.add(snap.address.taluk);
+
+//       if (p.membershipPlan) {
+//         membershipPlansMap.set(
+//           p.membershipPlan._id.toString(),
+//           p.membershipPlan.name
+//         );
+//       }
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       data: {
+//         businessCategories: [...categoriesSet],
+//         businessTypes: [...businessTypesSet],
+//         states: [...statesSet],
+//         districts: [...districtsSet],
+//         taluks: [...taluksSet],
+//         membershipPlans: Array.from(membershipPlansMap, ([id, name]) => ({
+//           _id: id,
+//           name,
+//         })),
+//       },
+//     });
+//   } catch (err) {
+//     console.error("Fetch Payment Filters Error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch filter data",
+//     });
+//   }
+// };
 
 module.exports = {
   createOrder,
   razorpayWebhook,
   fetchPaymentRecords,
+  // fetchPaymentFilters,
 };
