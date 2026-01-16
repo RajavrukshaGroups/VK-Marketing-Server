@@ -218,31 +218,275 @@ const createUser = async (req, res) => {
   }
 };
 
+// const fetchAllUsers = async (req, res) => {
+//   try {
+//     const page = parseInt(req.query.page) || 1;
+//     const limit = 15;
+//     const skip = (page - 1) * limit;
+//     const search = req.query.search?.trim();
+
+//     /* =========================
+//        SEARCH QUERY
+//     ========================= */
+//     let query = {};
+
+//     if (search) {
+//       query = {
+//         $or: [
+//           { companyName: { $regex: search, $options: "i" } },
+//           { email: { $regex: search, $options: "i" } },
+//           { mobileNumber: { $regex: search, $options: "i" } },
+//           { userId: { $regex: search, $options: "i" } },
+//         ],
+//       };
+//     }
+
+//     /* =========================
+//        FETCH USERS WITH REFERRER POPULATION
+//     ========================= */
+//     const [users, totalUsers] = await Promise.all([
+//       User.find(query)
+//         .populate("businessCategory", "name")
+//         .populate("membership.plan", "name amount")
+//         .populate({
+//           path: "referral.referredByUser",
+//           select: "userId companyName email mobileNumber", // Add more fields if needed
+//         })
+//         .sort({ createdAt: -1 })
+//         .skip(skip)
+//         .limit(limit)
+//         .lean(),
+
+//       User.countDocuments(query),
+//     ]);
+
+//     /* =========================
+//        DECRYPT PASSWORD
+//     ========================= */
+//     const formattedUsers = users.map((u) => ({
+//       ...u,
+//       password: decrypt(u.password),
+//     }));
+
+//     return res.status(200).json({
+//       success: true,
+//       data: formattedUsers,
+//       pagination: {
+//         currentPage: page,
+//         totalPages: Math.ceil(totalUsers / limit),
+//         totalUsers,
+//         limit,
+//       },
+//     });
+//   } catch (err) {
+//     console.error("Fetch Users Error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch users",
+//     });
+//   }
+// };
+
+//filters
+// const fetchAllUsers = async (req, res) => {
+//   try {
+//     const {
+//       page = 1,
+//       limit = 15,
+//       search,
+//       businessCategory,
+//       businessType,
+//       state,
+//       district,
+//       taluk,
+//       membershipPlan,
+//     } = req.query;
+
+//     const skip = (page - 1) * limit;
+
+//     /* =========================
+//        BASE QUERY
+//     ========================= */
+//     const query = {};
+
+//     /* =========================
+//        SEARCH
+//     ========================= */
+//     if (search) {
+//       query.$or = [
+//         { companyName: { $regex: search, $options: "i" } },
+//         { email: { $regex: search, $options: "i" } },
+//         { mobileNumber: { $regex: search, $options: "i" } },
+//         { userId: { $regex: search, $options: "i" } },
+//       ];
+//     }
+
+//     /* =========================
+//        FILTERS
+//     ========================= */
+//     if (businessCategory) {
+//       query.businessCategory = businessCategory;
+//     }
+
+//     if (businessType) {
+//       query.businessType = businessType; // works with array field
+//     }
+
+//     if (state) {
+//       query["address.state"] = state;
+//     }
+
+//     if (district) {
+//       query["address.district"] = district;
+//     }
+
+//     if (taluk) {
+//       query["address.taluk"] = taluk;
+//     }
+
+//     if (membershipPlan) {
+//       query["membership.plan"] = membershipPlan;
+//     }
+
+//     /* =========================
+//        FETCH USERS
+//     ========================= */
+//     const [users, totalUsers] = await Promise.all([
+//       User.find(query)
+//         .populate("businessCategory", "name")
+//         .populate("membership.plan", "name amount")
+//         .populate({
+//           path: "referral.referredByUser",
+//           select: "userId companyName email mobileNumber",
+//         })
+//         .sort({ createdAt: -1 })
+//         .skip(skip)
+//         .limit(Number(limit))
+//         .lean(),
+
+//       User.countDocuments(query),
+//     ]);
+
+//     /* =========================
+//        FORMAT RESPONSE
+//     ========================= */
+//     const formattedUsers = users.map((u) => ({
+//       ...u,
+//       password: decrypt(u.password),
+//     }));
+
+//     return res.status(200).json({
+//       success: true,
+//       data: formattedUsers,
+//       pagination: {
+//         currentPage: Number(page),
+//         totalPages: Math.ceil(totalUsers / limit),
+//         totalUsers,
+//         limit: Number(limit),
+//       },
+//     });
+//   } catch (err) {
+//     console.error("Fetch Users Error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch users",
+//     });
+//   }
+// };
+
 const fetchAllUsers = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = 15;
+    const {
+      page = 1,
+      limit = 15,
+      search,
+      businessCategory,
+      businessType,
+      state,
+      district,
+      taluk,
+      membershipPlan,
+    } = req.query;
+
     const skip = (page - 1) * limit;
-    const search = req.query.search?.trim();
 
     /* =========================
-       SEARCH QUERY
+       BASE QUERY
     ========================= */
-    let query = {};
+    const query = {};
 
+    /* =========================
+       SEARCH
+    ========================= */
     if (search) {
-      query = {
-        $or: [
-          { companyName: { $regex: search, $options: "i" } },
-          { email: { $regex: search, $options: "i" } },
-          { mobileNumber: { $regex: search, $options: "i" } },
-          { userId: { $regex: search, $options: "i" } },
-        ],
-      };
+      query.$or = [
+        { companyName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { mobileNumber: { $regex: search, $options: "i" } },
+        { userId: { $regex: search, $options: "i" } },
+      ];
     }
 
     /* =========================
-       FETCH USERS WITH REFERRER POPULATION
+       FILTERS
+    ========================= */
+    // if (businessCategory) {
+    //   query.businessCategory = businessCategory;
+    // }
+    if (businessCategory) {
+      // Handle both single value and array
+      if (Array.isArray(businessCategory)) {
+        query.businessCategory = { $in: businessCategory };
+      } else {
+        query.businessCategory = businessCategory;
+      }
+    }
+
+    if (businessType) {
+      if (Array.isArray(businessType)) {
+        query.businessType = { $in: businessType };
+      } else {
+        query.businessType = businessType;
+      }
+    }
+
+    if (state) {
+      if (Array.isArray(state)) {
+        query["address.state"] = { $in: state };
+      } else {
+        query["address.state"] = state;
+      }
+    }
+
+    if (district) {
+      if (Array.isArray(district)) {
+        query["address.district"] = { $in: district };
+      } else {
+        query["address.district"] = district;
+      }
+    }
+
+     if (taluk) {
+      if (Array.isArray(taluk)) {
+        query["address.taluk"] = { $in: taluk };
+      } else {
+        query["address.taluk"] = taluk;
+      }
+    }
+
+     if (membershipPlan) {
+      if (Array.isArray(membershipPlan)) {
+        query["membership.plan"] = { $in: membershipPlan };
+      } else {
+        query["membership.plan"] = membershipPlan;
+      }
+    }
+
+
+   
+
+    /* =========================
+       FETCH USERS
     ========================= */
     const [users, totalUsers] = await Promise.all([
       User.find(query)
@@ -250,18 +494,18 @@ const fetchAllUsers = async (req, res) => {
         .populate("membership.plan", "name amount")
         .populate({
           path: "referral.referredByUser",
-          select: "userId companyName email mobileNumber", // Add more fields if needed
+          select: "userId companyName email mobileNumber",
         })
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit)
+        .limit(Number(limit))
         .lean(),
 
       User.countDocuments(query),
     ]);
 
     /* =========================
-       DECRYPT PASSWORD
+       FORMAT RESPONSE
     ========================= */
     const formattedUsers = users.map((u) => ({
       ...u,
@@ -272,10 +516,10 @@ const fetchAllUsers = async (req, res) => {
       success: true,
       data: formattedUsers,
       pagination: {
-        currentPage: page,
+        currentPage: Number(page),
         totalPages: Math.ceil(totalUsers / limit),
         totalUsers,
-        limit,
+        limit: Number(limit),
       },
     });
   } catch (err) {
@@ -283,6 +527,78 @@ const fetchAllUsers = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch users",
+    });
+  }
+};
+
+const fetchUserFilters = async (req, res) => {
+  try {
+    const users = await User.find(
+      {},
+      {
+        businessCategory: 1,
+        businessType: 1,
+        address: 1,
+        "membership.plan": 1,
+      }
+    )
+      .populate("businessCategory", "name")
+      .populate("membership.plan", "name")
+      .lean();
+
+    const categoriesMap = new Map();
+    const businessTypesSet = new Set();
+    const statesSet = new Set();
+    const districtsSet = new Set();
+    const taluksSet = new Set();
+    const membershipPlansMap = new Map();
+
+    users.forEach((u) => {
+      if (u.businessCategory) {
+        categoriesMap.set(
+          u.businessCategory._id.toString(),
+          u.businessCategory.name
+        );
+      }
+
+      if (Array.isArray(u.businessType)) {
+        u.businessType.forEach((t) => businessTypesSet.add(t));
+      }
+
+      if (u.address?.state) statesSet.add(u.address.state);
+      if (u.address?.district) districtsSet.add(u.address.district);
+      if (u.address?.taluk) taluksSet.add(u.address.taluk);
+
+      if (u.membership?.plan) {
+        membershipPlansMap.set(
+          u.membership.plan._id.toString(),
+          u.membership.plan.name
+        );
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        businessCategories: Array.from(categoriesMap, ([_id, name]) => ({
+          _id,
+          name,
+        })),
+        businessTypes: [...businessTypesSet],
+        states: [...statesSet],
+        districts: [...districtsSet],
+        taluks: [...taluksSet],
+        membershipPlans: Array.from(membershipPlansMap, ([_id, name]) => ({
+          _id,
+          name,
+        })),
+      },
+    });
+  } catch (err) {
+    console.error("Fetch User Filters Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch user filters",
     });
   }
 };
@@ -570,4 +886,5 @@ module.exports = {
   fetchReferrerByUserId,
   editUsersDetails,
   fetchUserById,
+  fetchUserFilters,
 };
