@@ -56,10 +56,33 @@ const UsersSchema = new mongoose.Schema(
       required: true,
     },
 
-    businessType: {
-      type: [String],
-      enum: ["WHOLESALE", "RETAIL"],
-      required: true,
+    // businessType: {
+    //   type: [String],
+    //   enum: ["WHOLESALE", "RETAIL"],
+    //   required: true,
+    // },
+
+    /* =========================
+   BUSINESS CLASSIFICATION
+========================= */
+
+    businessNature: {
+      manufacturer: {
+        isManufacturer: { type: Boolean, default: false },
+        scale: {
+          type: [String],
+          enum: ["LARGE", "MSME"],
+          default: [],
+        },
+      },
+      trader: {
+        isTrader: { type: Boolean, default: false },
+        type: {
+          type: [String],
+          enum: ["WHOLESALE", "RETAIL"],
+          default: [],
+        },
+      },
     },
 
     /* 🔥 Referral System */

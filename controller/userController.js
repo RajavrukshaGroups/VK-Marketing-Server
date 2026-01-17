@@ -1,14 +1,18 @@
 const mongoose = require("mongoose");
 const User = require("../Models/Users");
+const Payment = require("../Models/Payment");
+const MembershipPlan = require("../Models/MembershipPlan");
+
 const { generatePassword } = require("../utils/password");
 const { sendWelcomeMail } = require("../utils/mailer");
 const { generateUserId } = require("../utils/generateUserId");
-const { encrypt } = require("../utils/encryption");
-const { decrypt } = require("../utils/encryption");
-const Payment = require("../Models/Payment");
-const MembershipPlan = require("../Models/MembershipPlan");
+const { encrypt, decrypt } = require("../utils/encryption");
+
 const MAX_REFERRALS_PER_USER = 4;
 
+/* =========================================================
+   CREATE USER (ADMIN / DIRECT REGISTRATION)
+========================================================= */
 const createUser = async (req, res) => {
   try {
     const {
@@ -18,7 +22,7 @@ const createUser = async (req, res) => {
       mobileNumber,
       email,
       businessCategory,
-      businessType,
+      businessNature,
       majorCommodities,
       gstNumber,
       bankName,
@@ -27,91 +31,103 @@ const createUser = async (req, res) => {
       referredByUserId,
     } = req.body;
 
-    // if (
-    //   !companyName ||
-    //   !proprietors ||
-    //   !address?.pin ||
-    //   !address?.state ||
-    //   !address?.district ||
-    //   !mobileNumber ||
-    //   !email ||
-    //   !businessCategory ||
-    //   !businessType?.length
-    // ) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: "Required fields are missing",
-    //   });
-    // }
-
+    /* =========================
+       BASIC VALIDATIONS
+    ========================= */
     if (!companyName)
       return res
         .status(400)
         .json({ success: false, message: "Company name is required" });
-
     if (!proprietors)
       return res
         .status(400)
         .json({ success: false, message: "Proprietor name is required" });
-
     if (!address?.pin)
       return res
         .status(400)
         .json({ success: false, message: "PIN code is required" });
-
     if (!address?.state)
       return res
         .status(400)
         .json({ success: false, message: "State is required" });
-
     if (!address?.district)
       return res
         .status(400)
         .json({ success: false, message: "District is required" });
-
     if (!mobileNumber)
       return res
         .status(400)
         .json({ success: false, message: "Mobile number is required" });
-
     if (!email)
       return res
         .status(400)
         .json({ success: false, message: "Email is required" });
-
     if (!businessCategory)
       return res
         .status(400)
         .json({ success: false, message: "Business category is required" });
 
-    if (!businessType?.length)
-      return res
-        .status(400)
-        .json({ success: false, message: "Business type is required" });
-
-    if (ifscCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode)) {
+    /* =========================
+       BUSINESS NATURE VALIDATION
+    ========================= */
+    if (
+      !businessNature ||
+      (!businessNature.manufacturer?.isManufacturer &&
+        !businessNature.trader?.isTrader)
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Invalid IFSC code format",
+        message: "Please select Manufacturer and/or Trader",
       });
+    }
+
+    if (
+      businessNature.manufacturer?.isManufacturer &&
+      !businessNature.manufacturer.scale?.length
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Please select Manufacturer type (Large / MSME)",
+      });
+    }
+
+    if (
+      businessNature.trader?.isTrader &&
+      !businessNature.trader.type?.length
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Please select Trader type (Wholesale / Retail)",
+      });
+    }
+
+    /* =========================
+       FORMAT VALIDATIONS
+    ========================= */
+    if (!mongoose.Types.ObjectId.isValid(businessCategory)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid business category" });
     }
 
     if (gstNumber) {
-      if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstNumber)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid GST number format",
-        });
+      const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+      if (!gstRegex.test(gstNumber)) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid GST number format" });
       }
     }
 
-    if (!mongoose.Types.ObjectId.isValid(businessCategory)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid business category",
-      });
+    if (ifscCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid IFSC code format" });
     }
 
+    /* =========================
+       DUPLICATE USER CHECK
+    ========================= */
     const existingUser = await User.findOne({
       $or: [{ email }, { mobileNumber }],
     });
@@ -124,12 +140,8 @@ const createUser = async (req, res) => {
     }
 
     /* =========================
-       USER ID + PASSWORD
+       REFERRAL HANDLING
     ========================= */
-    const userId = await generateUserId();
-    const plainPassword = generatePassword();
-    const encryptedPassword = encrypt(plainPassword);
-
     let referralData = {
       source: "ADMIN",
       referredByUser: null,
@@ -142,14 +154,10 @@ const createUser = async (req, res) => {
       if (!refUser) {
         return res.status(400).json({
           success: false,
-          message:
-            "This referral link is invalid or expired. Please register normally.",
+          message: "Invalid or expired referral link",
         });
       }
 
-      /* =========================
-     🔒 REFERRAL LIMIT CHECK
-  ========================= */
       const referralCount = await User.countDocuments({
         "referral.referredByUser": refUser._id,
       });
@@ -157,8 +165,7 @@ const createUser = async (req, res) => {
       if (referralCount >= MAX_REFERRALS_PER_USER) {
         return res.status(403).json({
           success: false,
-          message:
-            "Referral limit reached. This member cannot refer more users.",
+          message: "Referral limit reached for this user",
         });
       }
 
@@ -169,6 +176,12 @@ const createUser = async (req, res) => {
       };
     }
 
+    /* =========================
+       CREATE USER
+    ========================= */
+    const userId = await generateUserId();
+    const plainPassword = generatePassword();
+
     const newUser = await User.create({
       userId,
       companyName,
@@ -176,248 +189,63 @@ const createUser = async (req, res) => {
       address,
       mobileNumber,
       email,
-      password: encryptedPassword,
+      password: encrypt(plainPassword),
       businessCategory,
-      businessType,
+      businessNature,
       majorCommodities: majorCommodities || [],
       gstNumber,
       referral: referralData,
       bankDetails:
         bankName || accountNumber || ifscCode
-          ? {
-              bankName,
-              accountNumber,
-              ifscCode,
-            }
+          ? { bankName, accountNumber, ifscCode }
           : undefined,
     });
 
-    /* =========================
-       SEND WELCOME EMAIL
-    ========================= */
     await sendWelcomeMail({
       email,
       companyName,
-      password: plainPassword,
       userId,
+      password: plainPassword,
     });
 
     return res.status(201).json({
       success: true,
       message: "Membership registered successfully",
-      data: {
-        userId: newUser.userId,
-      },
+      data: { userId: newUser.userId },
     });
   } catch (err) {
     console.error("Create User Error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 };
 
-// const fetchAllUsers = async (req, res) => {
-//   try {
-//     const page = parseInt(req.query.page) || 1;
-//     const limit = 15;
-//     const skip = (page - 1) * limit;
-//     const search = req.query.search?.trim();
-
-//     /* =========================
-//        SEARCH QUERY
-//     ========================= */
-//     let query = {};
-
-//     if (search) {
-//       query = {
-//         $or: [
-//           { companyName: { $regex: search, $options: "i" } },
-//           { email: { $regex: search, $options: "i" } },
-//           { mobileNumber: { $regex: search, $options: "i" } },
-//           { userId: { $regex: search, $options: "i" } },
-//         ],
-//       };
-//     }
-
-//     /* =========================
-//        FETCH USERS WITH REFERRER POPULATION
-//     ========================= */
-//     const [users, totalUsers] = await Promise.all([
-//       User.find(query)
-//         .populate("businessCategory", "name")
-//         .populate("membership.plan", "name amount")
-//         .populate({
-//           path: "referral.referredByUser",
-//           select: "userId companyName email mobileNumber", // Add more fields if needed
-//         })
-//         .sort({ createdAt: -1 })
-//         .skip(skip)
-//         .limit(limit)
-//         .lean(),
-
-//       User.countDocuments(query),
-//     ]);
-
-//     /* =========================
-//        DECRYPT PASSWORD
-//     ========================= */
-//     const formattedUsers = users.map((u) => ({
-//       ...u,
-//       password: decrypt(u.password),
-//     }));
-
-//     return res.status(200).json({
-//       success: true,
-//       data: formattedUsers,
-//       pagination: {
-//         currentPage: page,
-//         totalPages: Math.ceil(totalUsers / limit),
-//         totalUsers,
-//         limit,
-//       },
-//     });
-//   } catch (err) {
-//     console.error("Fetch Users Error:", err);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to fetch users",
-//     });
-//   }
-// };
-
-//filters
-// const fetchAllUsers = async (req, res) => {
-//   try {
-//     const {
-//       page = 1,
-//       limit = 15,
-//       search,
-//       businessCategory,
-//       businessType,
-//       state,
-//       district,
-//       taluk,
-//       membershipPlan,
-//     } = req.query;
-
-//     const skip = (page - 1) * limit;
-
-//     /* =========================
-//        BASE QUERY
-//     ========================= */
-//     const query = {};
-
-//     /* =========================
-//        SEARCH
-//     ========================= */
-//     if (search) {
-//       query.$or = [
-//         { companyName: { $regex: search, $options: "i" } },
-//         { email: { $regex: search, $options: "i" } },
-//         { mobileNumber: { $regex: search, $options: "i" } },
-//         { userId: { $regex: search, $options: "i" } },
-//       ];
-//     }
-
-//     /* =========================
-//        FILTERS
-//     ========================= */
-//     if (businessCategory) {
-//       query.businessCategory = businessCategory;
-//     }
-
-//     if (businessType) {
-//       query.businessType = businessType; // works with array field
-//     }
-
-//     if (state) {
-//       query["address.state"] = state;
-//     }
-
-//     if (district) {
-//       query["address.district"] = district;
-//     }
-
-//     if (taluk) {
-//       query["address.taluk"] = taluk;
-//     }
-
-//     if (membershipPlan) {
-//       query["membership.plan"] = membershipPlan;
-//     }
-
-//     /* =========================
-//        FETCH USERS
-//     ========================= */
-//     const [users, totalUsers] = await Promise.all([
-//       User.find(query)
-//         .populate("businessCategory", "name")
-//         .populate("membership.plan", "name amount")
-//         .populate({
-//           path: "referral.referredByUser",
-//           select: "userId companyName email mobileNumber",
-//         })
-//         .sort({ createdAt: -1 })
-//         .skip(skip)
-//         .limit(Number(limit))
-//         .lean(),
-
-//       User.countDocuments(query),
-//     ]);
-
-//     /* =========================
-//        FORMAT RESPONSE
-//     ========================= */
-//     const formattedUsers = users.map((u) => ({
-//       ...u,
-//       password: decrypt(u.password),
-//     }));
-
-//     return res.status(200).json({
-//       success: true,
-//       data: formattedUsers,
-//       pagination: {
-//         currentPage: Number(page),
-//         totalPages: Math.ceil(totalUsers / limit),
-//         totalUsers,
-//         limit: Number(limit),
-//       },
-//     });
-//   } catch (err) {
-//     console.error("Fetch Users Error:", err);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to fetch users",
-//     });
-//   }
-// };
-
+/* =========================================================
+   FETCH USERS (SEARCH + FILTERS)
+========================================================= */
 const fetchAllUsers = async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 15,
-      search,
-      businessCategory,
-      businessType,
-      state,
-      district,
-      taluk,
-      membershipPlan,
-    } = req.query;
+    const { page = 1, limit = 15, search } = req.query;
+
+    // ✅ HANDLE BOTH key styles
+    const businessCategory =
+      req.query.businessCategory || req.query["businessCategory[]"];
+
+    const membershipPlan =
+      req.query.membershipPlan || req.query["membershipPlan[]"];
+
+    const state = req.query.state || req.query["state[]"];
+    const district = req.query.district || req.query["district[]"];
+    const taluk = req.query.taluk || req.query["taluk[]"];
+    const manufacturerScale =
+      req.query.manufacturerScale || req.query["manufacturerScale[]"];
+    const traderType = req.query.traderType || req.query["traderType[]"];
 
     const skip = (page - 1) * limit;
-
-    /* =========================
-       BASE QUERY
-    ========================= */
     const query = {};
 
-    /* =========================
-       SEARCH
-    ========================= */
+    /* ================= SEARCH ================= */
     if (search) {
       query.$or = [
         { companyName: { $regex: search, $options: "i" } },
@@ -427,75 +255,59 @@ const fetchAllUsers = async (req, res) => {
       ];
     }
 
-    /* =========================
-       FILTERS
-    ========================= */
-    // if (businessCategory) {
-    //   query.businessCategory = businessCategory;
-    // }
+    /* ================= FILTERS ================= */
+
     if (businessCategory) {
-      // Handle both single value and array
-      if (Array.isArray(businessCategory)) {
-        query.businessCategory = { $in: businessCategory };
-      } else {
-        query.businessCategory = businessCategory;
-      }
+      query.businessCategory = {
+        $in: []
+          .concat(businessCategory)
+          .map((id) => new mongoose.Types.ObjectId(id)),
+      };
     }
 
-    if (businessType) {
-      if (Array.isArray(businessType)) {
-        query.businessType = { $in: businessType };
-      } else {
-        query.businessType = businessType;
-      }
+    if (membershipPlan) {
+      query["membership.plan"] = {
+        $in: []
+          .concat(membershipPlan)
+          .map((id) => new mongoose.Types.ObjectId(id)),
+      };
     }
 
     if (state) {
-      if (Array.isArray(state)) {
-        query["address.state"] = { $in: state };
-      } else {
-        query["address.state"] = state;
-      }
+      query["address.state"] = { $in: [].concat(state) };
     }
 
     if (district) {
-      if (Array.isArray(district)) {
-        query["address.district"] = { $in: district };
-      } else {
-        query["address.district"] = district;
-      }
+      query["address.district"] = { $in: [].concat(district) };
     }
 
-     if (taluk) {
-      if (Array.isArray(taluk)) {
-        query["address.taluk"] = { $in: taluk };
-      } else {
-        query["address.taluk"] = taluk;
-      }
+    if (taluk) {
+      query["address.taluk"] = { $in: [].concat(taluk) };
     }
 
-     if (membershipPlan) {
-      if (Array.isArray(membershipPlan)) {
-        query["membership.plan"] = { $in: membershipPlan };
-      } else {
-        query["membership.plan"] = membershipPlan;
-      }
+    if (manufacturerScale) {
+      query["businessNature.manufacturer.isManufacturer"] = true;
+      query["businessNature.manufacturer.scale"] = {
+        $in: [].concat(manufacturerScale),
+      };
     }
 
+    if (traderType) {
+      query["businessNature.trader.isTrader"] = true;
+      query["businessNature.trader.type"] = {
+        $in: [].concat(traderType),
+      };
+    }
 
-   
-
-    /* =========================
-       FETCH USERS
-    ========================= */
+    /* ================= FETCH ================= */
     const [users, totalUsers] = await Promise.all([
       User.find(query)
         .populate("businessCategory", "name")
         .populate("membership.plan", "name amount")
-        .populate({
-          path: "referral.referredByUser",
-          select: "userId companyName email mobileNumber",
-        })
+        .populate(
+          "referral.referredByUser",
+          "userId companyName mobileNumber email"
+        )
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))
@@ -504,15 +316,12 @@ const fetchAllUsers = async (req, res) => {
       User.countDocuments(query),
     ]);
 
-    /* =========================
-       FORMAT RESPONSE
-    ========================= */
     const formattedUsers = users.map((u) => ({
       ...u,
       password: decrypt(u.password),
     }));
 
-    return res.status(200).json({
+    return res.json({
       success: true,
       data: formattedUsers,
       pagination: {
@@ -524,20 +333,22 @@ const fetchAllUsers = async (req, res) => {
     });
   } catch (err) {
     console.error("Fetch Users Error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch users",
-    });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch users" });
   }
 };
 
+/* =========================================================
+   FETCH FILTER OPTIONS
+========================================================= */
 const fetchUserFilters = async (req, res) => {
   try {
     const users = await User.find(
       {},
       {
         businessCategory: 1,
-        businessType: 1,
+        businessNature: 1,
         address: 1,
         "membership.plan": 1,
       }
@@ -546,71 +357,68 @@ const fetchUserFilters = async (req, res) => {
       .populate("membership.plan", "name")
       .lean();
 
-    const categoriesMap = new Map();
-    const businessTypesSet = new Set();
-    const statesSet = new Set();
-    const districtsSet = new Set();
-    const taluksSet = new Set();
-    const membershipPlansMap = new Map();
+    const categories = new Map();
+    const states = new Set();
+    const districts = new Set();
+    const taluks = new Set();
+    const plans = new Map();
+    const manufacturerScales = new Set();
+    const traderTypes = new Set();
 
     users.forEach((u) => {
-      if (u.businessCategory) {
-        categoriesMap.set(
+      if (u.businessCategory)
+        categories.set(
           u.businessCategory._id.toString(),
           u.businessCategory.name
         );
-      }
 
-      if (Array.isArray(u.businessType)) {
-        u.businessType.forEach((t) => businessTypesSet.add(t));
-      }
+      if (u.address?.state) states.add(u.address.state);
+      if (u.address?.district) districts.add(u.address.district);
+      if (u.address?.taluk) taluks.add(u.address.taluk);
 
-      if (u.address?.state) statesSet.add(u.address.state);
-      if (u.address?.district) districtsSet.add(u.address.district);
-      if (u.address?.taluk) taluksSet.add(u.address.taluk);
+      if (u.membership?.plan)
+        plans.set(u.membership.plan._id.toString(), u.membership.plan.name);
 
-      if (u.membership?.plan) {
-        membershipPlansMap.set(
-          u.membership.plan._id.toString(),
-          u.membership.plan.name
-        );
-      }
+      u.businessNature?.manufacturer?.scale?.forEach((s) =>
+        manufacturerScales.add(s)
+      );
+      u.businessNature?.trader?.type?.forEach((t) => traderTypes.add(t));
     });
 
-    return res.status(200).json({
+    return res.json({
       success: true,
       data: {
-        businessCategories: Array.from(categoriesMap, ([_id, name]) => ({
-          _id,
+        businessCategories: [...categories].map(([id, name]) => ({
+          _id: id,
           name,
         })),
-        businessTypes: [...businessTypesSet],
-        states: [...statesSet],
-        districts: [...districtsSet],
-        taluks: [...taluksSet],
-        membershipPlans: Array.from(membershipPlansMap, ([_id, name]) => ({
-          _id,
-          name,
-        })),
+        states: [...states].sort(),
+        districts: [...districts].sort(),
+        taluks: [...taluks].sort(),
+        membershipPlans: [...plans].map(([id, name]) => ({ _id: id, name })),
+        manufacturerScales: [...manufacturerScales].sort(),
+        traderTypes: [...traderTypes].sort(),
+        // Remove businessTypes since it's now handled by businessNature
       },
     });
   } catch (err) {
     console.error("Fetch User Filters Error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch user filters",
-    });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch filters" });
   }
 };
-
 // GET /users/referral/:userId
 const fetchReferrerByUserId = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // 🔒 strict validation (6-digit userId)
+    // strict 6-digit validation
     if (!/^\d{6}$/.test(userId)) {
-      return res.status(400).json({ success: false });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid referral user id",
+      });
     }
 
     const user = await User.findOne({ userId })
@@ -618,15 +426,94 @@ const fetchReferrerByUserId = async (req, res) => {
       .lean();
 
     if (!user) {
-      return res.status(404).json({ success: false });
+      return res.status(404).json({
+        success: false,
+        message: "Referrer not found",
+      });
     }
 
-    return res.json({
+    return res.status(200).json({
       success: true,
       data: user,
     });
   } catch (err) {
-    return res.status(500).json({ success: false });
+    console.error("Fetch Referrer Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch referrer details",
+    });
+  }
+};
+
+const fetchUserById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user id",
+      });
+    }
+
+    const user = await User.findById(id)
+      .populate("businessCategory", "name")
+      .populate({
+        path: "referral.referredByUser",
+        select: "userId companyName",
+      })
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        _id: user._id,
+        userId: user.userId,
+
+        companyName: user.companyName,
+        proprietors: user.proprietors,
+
+        address: user.address,
+
+        mobileNumber: user.mobileNumber,
+        email: user.email,
+
+        businessCategory: user.businessCategory?._id || "",
+        businessCategoryName: user.businessCategory?.name || "",
+
+        businessNature: user.businessNature,
+
+        majorCommodities: user.majorCommodities || [],
+
+        gstNumber: user.gstNumber || "",
+
+        bankDetails: user.bankDetails || {
+          bankName: "",
+          accountNumber: "",
+          ifscCode: "",
+        },
+
+        referral: user.referral,
+
+        membership: user.membership,
+        isActive: user.isActive,
+
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (err) {
+    console.error("Fetch User By ID Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch user details",
+    });
   }
 };
 
@@ -656,7 +543,7 @@ const editUsersDetails = async (req, res) => {
       mobileNumber,
       email,
       businessCategory,
-      businessType,
+      businessNature,
       majorCommodities,
       gstNumber,
       bankDetails,
@@ -685,7 +572,7 @@ const editUsersDetails = async (req, res) => {
     }
 
     /* =========================
-       FORMAT VALIDATIONS
+       VALIDATIONS
     ========================= */
     if (
       businessCategory &&
@@ -695,6 +582,38 @@ const editUsersDetails = async (req, res) => {
         success: false,
         message: "Invalid business category",
       });
+    }
+
+    if (businessNature) {
+      if (
+        !businessNature.manufacturer?.isManufacturer &&
+        !businessNature.trader?.isTrader
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Select Manufacturer and/or Trader",
+        });
+      }
+
+      if (
+        businessNature.manufacturer?.isManufacturer &&
+        !businessNature.manufacturer.scale?.length
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Select Manufacturer type (Large / MSME)",
+        });
+      }
+
+      if (
+        businessNature.trader?.isTrader &&
+        !businessNature.trader.type?.length
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Select Trader type (Wholesale / Retail)",
+        });
+      }
     }
 
     if (gstNumber) {
@@ -732,15 +651,8 @@ const editUsersDetails = async (req, res) => {
       }
     }
 
-    if (membershipPlan && !mongoose.Types.ObjectId.isValid(membershipPlan)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid membership plan id",
-      });
-    }
-
     /* =========================
-       APPLY UPDATES (SAFE)
+       APPLY UPDATES
     ========================= */
     if (companyName !== undefined) user.companyName = companyName;
     if (proprietors !== undefined) user.proprietors = proprietors;
@@ -749,13 +661,16 @@ const editUsersDetails = async (req, res) => {
     if (email !== undefined) user.email = email;
     if (businessCategory !== undefined)
       user.businessCategory = businessCategory;
-    if (businessType !== undefined) user.businessType = businessType;
+    if (businessNature !== undefined) user.businessNature = businessNature;
     if (majorCommodities !== undefined)
       user.majorCommodities = majorCommodities;
     if (gstNumber !== undefined) user.gstNumber = gstNumber;
     if (bankDetails !== undefined) user.bankDetails = bankDetails;
     if (isActive !== undefined) user.isActive = isActive;
 
+    /* =========================
+       MEMBERSHIP CHANGE
+    ========================= */
     if (
       membershipPlan &&
       membershipPlan.toString() !== user.membership.plan.toString()
@@ -767,24 +682,20 @@ const editUsersDetails = async (req, res) => {
           message: "Membership plan not found",
         });
       }
-      user.membership.plan = membershipPlan;
+
+      user.membership.plan = plan._id;
       user.membership.startedAt = new Date();
-      user.membership.expiresAt = null;
+      user.membership.expiresAt = plan.durationInDays
+        ? new Date(Date.now() + plan.durationInDays * 86400000)
+        : null;
 
       await Payment.findOneAndUpdate(
-        {
-          user: user._id,
-          status: "SUCCESS",
-        },
-        {
-          membershipPlan: plan._id,
-          amount: plan.amount,
-        },
-        {
-          sort: { createdAt: -1 },
-        }
+        { user: user._id, status: "SUCCESS" },
+        { membershipPlan: plan._id, amount: plan.amount },
+        { sort: { createdAt: -1 } }
       );
     }
+
     await user.save();
 
     return res.status(200).json({
@@ -800,91 +711,11 @@ const editUsersDetails = async (req, res) => {
   }
 };
 
-const fetchUserById = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    /* =========================
-       VALIDATE OBJECT ID
-    ========================= */
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid user id",
-      });
-    }
-
-    /* =========================
-       FETCH USER
-    ========================= */
-    const user = await User.findById(id)
-      .populate("businessCategory", "name")
-      .populate({
-        path: "referral.referredByUser",
-        select: "userId companyName",
-      })
-      .lean();
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    /* =========================
-       RESPONSE (SAFE DATA)
-    ========================= */
-    return res.status(200).json({
-      success: true,
-      data: {
-        _id: user._id,
-        userId: user.userId,
-
-        companyName: user.companyName,
-        proprietors: user.proprietors,
-
-        address: user.address,
-
-        mobileNumber: user.mobileNumber,
-        email: user.email,
-
-        businessCategory: user.businessCategory?._id || "",
-        businessCategoryName: user.businessCategory?.name || "",
-
-        businessType: user.businessType,
-        majorCommodities: user.majorCommodities,
-
-        gstNumber: user.gstNumber || "",
-
-        bankDetails: user.bankDetails || {
-          bankName: "",
-          accountNumber: "",
-          ifscCode: "",
-        },
-
-        referral: user.referral,
-
-        membership: user.membership,
-        isActive: user.isActive,
-
-        createdAt: user.createdAt,
-      },
-    });
-  } catch (err) {
-    console.error("Fetch User By ID Error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch user details",
-    });
-  }
-};
-
 module.exports = {
   createUser,
   fetchAllUsers,
-  fetchReferrerByUserId,
-  editUsersDetails,
-  fetchUserById,
   fetchUserFilters,
+  fetchReferrerByUserId,
+  fetchUserById,
+  editUsersDetails,
 };
