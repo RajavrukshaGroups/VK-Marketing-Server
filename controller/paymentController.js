@@ -33,14 +33,15 @@ const createOrder = async (req, res) => {
       mobileNumber,
       email,
       businessCategory,
-      businessType,
+      businessNature,
       majorCommodities,
       gstNumber,
       bankDetails,
+      referral,
     } = registrationData;
 
     /* =========================
-       BASIC REQUIRED VALIDATIONS
+       BASIC VALIDATIONS
     ========================= */
     if (!companyName)
       return res
@@ -52,20 +53,10 @@ const createOrder = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Proprietor name is required" });
 
-    if (!address?.pin)
+    if (!address?.pin || !address?.state || !address?.district)
       return res
         .status(400)
-        .json({ success: false, message: "PIN code is required" });
-
-    if (!address?.state)
-      return res
-        .status(400)
-        .json({ success: false, message: "State is required" });
-
-    if (!address?.district)
-      return res
-        .status(400)
-        .json({ success: false, message: "District is required" });
+        .json({ success: false, message: "Complete address is required" });
 
     if (!mobileNumber || mobileNumber.length !== 10)
       return res
@@ -82,16 +73,46 @@ const createOrder = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Business category is required" });
 
-    if (!businessType?.length)
-      return res
-        .status(400)
-        .json({ success: false, message: "Business type is required" });
+    /* =========================
+       BUSINESS NATURE VALIDATION
+    ========================= */
+    if (
+      !businessNature ||
+      (!businessNature.manufacturer?.isManufacturer &&
+        !businessNature.trader?.isTrader)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Select Manufacturer and/or Trader",
+      });
+    }
 
-    if (!majorCommodities || !majorCommodities.some((c) => c.trim()))
+    if (
+      businessNature.manufacturer?.isManufacturer &&
+      !businessNature.manufacturer.scale?.length
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Select Manufacturer scale (Large / MSME)",
+      });
+    }
+
+    if (
+      businessNature.trader?.isTrader &&
+      !businessNature.trader.type?.length
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Select Trader type (Wholesale / Retail)",
+      });
+    }
+
+    if (!majorCommodities || !majorCommodities.some((c) => c.trim())) {
       return res.status(400).json({
         success: false,
         message: "At least one major commodity is required",
       });
+    }
 
     /* =========================
        FORMAT VALIDATIONS
@@ -104,7 +125,8 @@ const createOrder = async (req, res) => {
     }
 
     if (gstNumber) {
-      if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstNumber)) {
+      const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+      if (!gstRegex.test(gstNumber)) {
         return res.status(400).json({
           success: false,
           message: "Invalid GST number format",
@@ -112,9 +134,6 @@ const createOrder = async (req, res) => {
       }
     }
 
-    /* =========================
-       BANK DETAILS (GROUPED)
-    ========================= */
     if (bankDetails) {
       const { bankName, accountNumber, ifscCode } = bankDetails;
 
@@ -135,13 +154,13 @@ const createOrder = async (req, res) => {
       if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode)) {
         return res.status(400).json({
           success: false,
-          message: "Invalid IFSC code format",
+          message: "Invalid IFSC code",
         });
       }
     }
 
     /* =========================
-       🔒 DUPLICATE USER CHECK
+       DUPLICATE USER CHECK
     ========================= */
     const existingUser = await User.findOne({
       $or: [{ email }, { mobileNumber }],
@@ -155,7 +174,7 @@ const createOrder = async (req, res) => {
     }
 
     /* =========================
-       VALIDATE MEMBERSHIP PLAN
+       MEMBERSHIP PLAN
     ========================= */
     const plan = await MembershipPlan.findById(membershipPlanId);
     if (!plan || !plan.isActive) {
@@ -180,15 +199,25 @@ const createOrder = async (req, res) => {
     await Payment.create({
       membershipPlan: plan._id,
       amount: plan.amount,
-      registrationSnapshot: registrationData,
+      registrationSnapshot: {
+        companyName,
+        proprietors,
+        address,
+        mobileNumber,
+        email,
+        businessCategory,
+        businessNature,
+        majorCommodities,
+        gstNumber,
+        bankDetails,
+        referral,
+      },
       razorpay: { orderId: order.id },
       status: "CREATED",
     });
 
     return res.json({
       success: true,
-      message:
-        "Payment completed successfully.Your membership will be activated shortly",
       orderId: order.id,
       amount: plan.amount,
       key: process.env.RAZORPAY_KEY_ID,
@@ -207,40 +236,17 @@ const createOrder = async (req, res) => {
 ========================= */
 const razorpayWebhook = async (req, res) => {
   try {
-    /* =========================
-       VERIFY WEBHOOK SIGNATURE
-    ========================= */
-    console.log("🔔 Razorpay webhook HIT");
-
-    console.log(
-      "Webhook secret exists:",
-      !!process.env.RAZORPAY_WEBHOOK_SECRET
-    );
-
     const signature = req.headers["x-razorpay-signature"];
-
-    // const expectedSignature = crypto
-    //   .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
-    //   .update(JSON.stringify(req.body))
-    //   .digest("hex");
 
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
       .update(req.body)
       .digest("hex");
 
-    console.log("Expected signature:", expectedSignature);
-
     if (signature !== expectedSignature) {
-      console.log("signature mismatched");
       return res.status(400).send("Invalid signature");
     }
 
-    console.log("✅ Signature verified");
-
-    /* =========================
-       HANDLE ONLY PAYMENT CAPTURE
-    ========================= */
     const event = JSON.parse(req.body.toString());
     if (event.event !== "payment.captured") {
       return res.json({ received: true });
@@ -248,35 +254,27 @@ const razorpayWebhook = async (req, res) => {
 
     const paymentEntity = event.payload.payment.entity;
 
-    /* =========================
-       FIND PAYMENT RECORD
-    ========================= */
-    console.log("Looking for orderId:", paymentEntity.order_id);
-
     const payment = await Payment.findOne({
       "razorpay.orderId": paymentEntity.order_id,
     });
 
-    console.log("Payment found:", !!payment, payment?.status);
-
-    // 🔒 Webhook retry protection
     if (!payment || payment.status === "SUCCESS") {
       return res.json({ received: true });
     }
 
-    /* =========================
-       LOAD SNAPSHOT & PLAN
-    ========================= */
     const snapshot = payment.registrationSnapshot;
     const plan = await MembershipPlan.findById(payment.membershipPlan);
 
-    if (!snapshot || !plan) {
-      console.error("Missing snapshot or membership plan");
-      return res.status(500).json({ received: false });
+    if (
+      !snapshot?.businessNature ||
+      (!snapshot.businessNature.manufacturer?.isManufacturer &&
+        !snapshot.businessNature.trader?.isTrader)
+    ) {
+      return res.status(400).json({ received: false });
     }
 
     /* =========================
-       🔁 REFERRAL HANDLING (EXACT CREATE USER LOGIC)
+       REFERRAL LOGIC
     ========================= */
     let referralData = {
       source: "ADMIN",
@@ -289,24 +287,14 @@ const razorpayWebhook = async (req, res) => {
     if (referredByUserId) {
       const refUser = await User.findOne({ userId: referredByUserId });
 
-      if (!refUser) {
-        console.error("Invalid referral userId:", referredByUserId);
-        return res.status(400).json({
-          received: false,
-          message: "Invalid referral user",
-        });
-      }
+      if (!refUser) return res.json({ received: false });
 
       const referralCount = await User.countDocuments({
         "referral.referredByUser": refUser._id,
       });
 
       if (referralCount >= MAX_REFERRALS_PER_USER) {
-        console.error("Referral limit exceeded for:", refUser.userId);
-        return res.status(403).json({
-          received: false,
-          message: "Referral limit exceeded",
-        });
+        return res.json({ received: false });
       }
 
       referralData = {
@@ -319,8 +307,6 @@ const razorpayWebhook = async (req, res) => {
     /* =========================
        CREATE USER
     ========================= */
-    console.log("Creating user for:", snapshot.email);
-
     const userId = await generateUserId();
     const plainPassword = generatePassword();
 
@@ -334,13 +320,12 @@ const razorpayWebhook = async (req, res) => {
       password: encrypt(plainPassword),
 
       businessCategory: snapshot.businessCategory,
-      businessType: snapshot.businessType,
+      businessNature: snapshot.businessNature,
       majorCommodities: snapshot.majorCommodities || [],
       gstNumber: snapshot.gstNumber,
 
       referral: referralData,
-
-      bankDetails: snapshot.bankDetails || undefined,
+      bankDetails: snapshot.bankDetails,
 
       membership: {
         plan: plan._id,
@@ -351,23 +336,13 @@ const razorpayWebhook = async (req, res) => {
           : null,
       },
     });
-    console.log("user created", newUser._id);
-
-    /* =========================
-       UPDATE PAYMENT RECORD
-    ========================= */
-    console.log("Creating user for:", snapshot.email);
 
     payment.status = "SUCCESS";
     payment.user = newUser._id;
     payment.razorpay.paymentId = paymentEntity.id;
-    payment.razorpay.signature = signature;
     payment.paidAt = new Date();
     await payment.save();
 
-    /* =========================
-       SEND WELCOME EMAIL (ONCE)
-    ========================= */
     await sendWelcomeMail({
       email: newUser.email,
       companyName: newUser.companyName,
@@ -381,6 +356,7 @@ const razorpayWebhook = async (req, res) => {
     return res.status(500).json({ received: false });
   }
 };
+
 
 const fetchPaymentRecords = async (req, res) => {
   try {
@@ -474,6 +450,7 @@ const fetchPaymentRecords = async (req, res) => {
         createdAt: p.createdAt,
 
         companyName: p.registrationSnapshot?.companyName,
+        businessNature: p.registrationSnapshot?.businessNature || null,
         email: p.registrationSnapshot?.email,
         mobileNumber: p.registrationSnapshot?.mobileNumber,
 
