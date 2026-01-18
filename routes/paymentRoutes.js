@@ -18,6 +18,11 @@ router.post(
   PaymentController.razorpayWebhook
 );
 router.get("/get-payment-records", PaymentController.fetchPaymentRecords);
+router.put(
+  "/admin/payment/edit/:paymentId",
+  PaymentController.editPaymentRecord
+);
+router.get("/admin/view-payment/:id", PaymentController.viewIndPaymentRecord);
 // router.get("/filters", PaymentController.fetchPaymentFilters);
 
 module.exports = router;
