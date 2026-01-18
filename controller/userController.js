@@ -29,43 +29,37 @@ const createUser = async (req, res) => {
       accountNumber,
       ifscCode,
       referredByUserId,
+
+      membershipPlan,
+      paymentSource,
+      transactionId,
+      amount,
     } = req.body;
 
     /* =========================
        BASIC VALIDATIONS
     ========================= */
-    if (!companyName)
+    if (
+      !companyName ||
+      !proprietors ||
+      !address?.pin ||
+      !address?.state ||
+      !address?.district
+    )
       return res
         .status(400)
-        .json({ success: false, message: "Company name is required" });
-    if (!proprietors)
+        .json({ success: false, message: "Missing required fields" });
+
+    if (!mobileNumber || !email || !businessCategory)
       return res
         .status(400)
-        .json({ success: false, message: "Proprietor name is required" });
-    if (!address?.pin)
-      return res
-        .status(400)
-        .json({ success: false, message: "PIN code is required" });
-    if (!address?.state)
-      return res
-        .status(400)
-        .json({ success: false, message: "State is required" });
-    if (!address?.district)
-      return res
-        .status(400)
-        .json({ success: false, message: "District is required" });
-    if (!mobileNumber)
-      return res
-        .status(400)
-        .json({ success: false, message: "Mobile number is required" });
-    if (!email)
-      return res
-        .status(400)
-        .json({ success: false, message: "Email is required" });
-    if (!businessCategory)
-      return res
-        .status(400)
-        .json({ success: false, message: "Business category is required" });
+        .json({ success: false, message: "Missing required fields" });
+
+    if (!membershipPlan || !amount)
+      return res.status(400).json({
+        success: false,
+        message: "Membership & payment details required",
+      });
 
     /* =========================
        BUSINESS NATURE VALIDATION
@@ -81,50 +75,6 @@ const createUser = async (req, res) => {
       });
     }
 
-    if (
-      businessNature.manufacturer?.isManufacturer &&
-      !businessNature.manufacturer.scale?.length
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Please select Manufacturer type (Large / MSME)",
-      });
-    }
-
-    if (
-      businessNature.trader?.isTrader &&
-      !businessNature.trader.type?.length
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Please select Trader type (Wholesale / Retail)",
-      });
-    }
-
-    /* =========================
-       FORMAT VALIDATIONS
-    ========================= */
-    if (!mongoose.Types.ObjectId.isValid(businessCategory)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid business category" });
-    }
-
-    if (gstNumber) {
-      const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
-      if (!gstRegex.test(gstNumber)) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Invalid GST number format" });
-      }
-    }
-
-    if (ifscCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid IFSC code format" });
-    }
-
     /* =========================
        DUPLICATE USER CHECK
     ========================= */
@@ -135,12 +85,23 @@ const createUser = async (req, res) => {
     if (existingUser) {
       return res.status(409).json({
         success: false,
-        message: "Email or Mobile Number is already registered",
+        message: "Email or Mobile Number already registered",
       });
     }
 
     /* =========================
-       REFERRAL HANDLING
+       MEMBERSHIP PLAN
+    ========================= */
+    const plan = await MembershipPlan.findById(membershipPlan);
+    if (!plan) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid membership plan",
+      });
+    }
+
+    /* =========================
+       REFERRAL HANDLING (SAME AS WEBHOOK)
     ========================= */
     let referralData = {
       source: "ADMIN",
@@ -150,11 +111,10 @@ const createUser = async (req, res) => {
 
     if (referredByUserId) {
       const refUser = await User.findOne({ userId: referredByUserId });
-
       if (!refUser) {
         return res.status(400).json({
           success: false,
-          message: "Invalid or expired referral link",
+          message: "Invalid referral user",
         });
       }
 
@@ -165,7 +125,7 @@ const createUser = async (req, res) => {
       if (referralCount >= MAX_REFERRALS_PER_USER) {
         return res.status(403).json({
           success: false,
-          message: "Referral limit reached for this user",
+          message: "Referral limit exceeded",
         });
       }
 
@@ -176,8 +136,48 @@ const createUser = async (req, res) => {
       };
     }
 
+    const registrationSnapshot = {
+      companyName,
+      proprietors,
+      address,
+      mobileNumber,
+      email,
+      businessCategory,
+      businessNature,
+      majorCommodities,
+      gstNumber,
+
+      bankDetails:
+        bankName || accountNumber || ifscCode
+          ? { bankName, accountNumber, ifscCode }
+          : undefined,
+
+      referral: referredByUserId
+        ? {
+            source: "USER",
+            referredByUserId,
+          }
+        : {
+            source: "ADMIN",
+            referredByUserId: null,
+          },
+    };
+
     /* =========================
-       CREATE USER
+       CREATE PAYMENT (ADMIN FLOW)
+    ========================= */
+    const payment = await Payment.create({
+      membershipPlan: plan._id,
+      amount,
+      paymentSource: paymentSource || "ADMIN",
+      transactionId: transactionId || null,
+      registrationSnapshot,
+      status: "SUCCESS",
+      paidAt: new Date(),
+    });
+
+    /* =========================
+       CREATE USER (EXACT LIKE WEBHOOK)
     ========================= */
     const userId = await generateUserId();
     const plainPassword = generatePassword();
@@ -190,17 +190,38 @@ const createUser = async (req, res) => {
       mobileNumber,
       email,
       password: encrypt(plainPassword),
+
       businessCategory,
       businessNature,
       majorCommodities: majorCommodities || [],
       gstNumber,
+
       referral: referralData,
+
       bankDetails:
         bankName || accountNumber || ifscCode
           ? { bankName, accountNumber, ifscCode }
           : undefined,
+
+      membership: {
+        plan: plan._id,
+        status: "ACTIVE",
+        startedAt: new Date(),
+        expiresAt: plan.durationInDays
+          ? new Date(Date.now() + plan.durationInDays * 86400000)
+          : null,
+      },
     });
 
+    /* =========================
+       LINK PAYMENT → USER
+    ========================= */
+    payment.user = newUser._id;
+    await payment.save();
+
+    /* =========================
+       SEND EMAIL
+    ========================= */
     await sendWelcomeMail({
       email,
       companyName,
@@ -210,14 +231,18 @@ const createUser = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Membership registered successfully",
-      data: { userId: newUser.userId },
+      message: "Member registered successfully",
+      data: {
+        userId: newUser.userId,
+        paymentId: payment._id,
+      },
     });
   } catch (err) {
     console.error("Create User Error:", err);
-    return res
-      .status(500)
-      .json({ success: false, message: "Internal server error" });
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };
 

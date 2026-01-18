@@ -16,13 +16,25 @@ const PaymentSchema = new mongoose.Schema(
 
     amount: Number,
 
+    paymentSource: {
+      type: String,
+      enum: ["RAZORPAY", "UPI", "NEFT", "IMPS", "CASH", "CHEQUE", "ADMIN"],
+      required: true,
+      default: "ADMIN",
+    },
+    transactionId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+
     registrationSnapshot: {
       type: Object, // 🔥 STORE FORM DATA HERE
       required: true,
     },
 
     razorpay: {
-      orderId: { type: String, required: true },
+      orderId: { type: String },
       paymentId: String,
       signature: String,
     },

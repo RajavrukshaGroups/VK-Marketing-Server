@@ -357,7 +357,6 @@ const razorpayWebhook = async (req, res) => {
   }
 };
 
-
 const fetchPaymentRecords = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -449,6 +448,10 @@ const fetchPaymentRecords = async (req, res) => {
         paidAt: p.paidAt,
         createdAt: p.createdAt,
 
+        adminPanelPayment: {
+          source: p.paymentSource || "ADMIN",
+          transactionId: p.transactionId || null,
+        },
         companyName: p.registrationSnapshot?.companyName,
         businessNature: p.registrationSnapshot?.businessNature || null,
         email: p.registrationSnapshot?.email,
@@ -479,10 +482,18 @@ const fetchPaymentRecords = async (req, res) => {
           referredByCompanyName: referrer?.companyName || null,
         },
 
-        razorpay: {
-          orderId: p.razorpay?.orderId,
-          paymentId: p.razorpay?.paymentId,
-        },
+        // razorpay: {
+        //   orderId: p.razorpay?.orderId,
+        //   paymentId: p.razorpay?.paymentId,
+        // },
+
+        /* ================= RAZORPAY (ONLY IF EXISTS) ================= */
+        razorpay: p.razorpay?.orderId
+          ? {
+              orderId: p.razorpay.orderId,
+              paymentId: p.razorpay.paymentId,
+            }
+          : null,
       };
     });
 
@@ -565,9 +576,218 @@ const fetchPaymentRecords = async (req, res) => {
 //   }
 // };
 
+const editPaymentRecord = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+
+    const { paymentSource, transactionId, amount, status } = req.body;
+
+    /* =========================
+       VALIDATE PAYMENT ID
+    ========================= */
+    if (!mongoose.Types.ObjectId.isValid(paymentId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment ID",
+      });
+    }
+
+    const payment = await Payment.findById(paymentId);
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment record not found",
+      });
+    }
+
+    /* =========================
+       BLOCK RAZORPAY EDITS
+    ========================= */
+    if (payment.razorpay?.paymentId) {
+      return res.status(403).json({
+        success: false,
+        message: "Razorpay payments cannot be edited",
+      });
+    }
+
+    /* =========================
+       UPDATE FIELDS
+    ========================= */
+    if (paymentSource) {
+      payment.paymentSource = paymentSource;
+      payment.registrationSnapshot.paymentSource = paymentSource;
+    }
+
+    if (transactionId !== undefined) {
+      payment.transactionId = transactionId || null;
+      payment.registrationSnapshot.transactionId = transactionId || null;
+    }
+
+    if (amount !== undefined) {
+      payment.amount = Number(amount);
+      payment.registrationSnapshot.amount = Number(amount);
+    }
+
+    if (status) {
+      payment.status = status;
+
+      if (status === "SUCCESS" && !payment.paidAt) {
+        payment.paidAt = new Date();
+      }
+
+      if (status !== "SUCCESS") {
+        payment.paidAt = null;
+      }
+    }
+
+    await payment.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment record updated successfully",
+      data: {
+        _id: payment._id,
+        paymentSource: payment.paymentSource,
+        transactionId: payment.transactionId,
+        amount: payment.amount,
+        status: payment.status,
+        paidAt: payment.paidAt,
+      },
+    });
+  } catch (err) {
+    console.error("Edit Payment Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update payment record",
+    });
+  }
+};
+
+const viewIndPaymentRecord = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    /* =========================
+       VALIDATE ID
+    ========================= */
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment ID",
+      });
+    }
+
+    /* =========================
+       FETCH PAYMENT
+    ========================= */
+    const payment = await Payment.findById(id)
+      .populate({
+        path: "user",
+        select: "userId companyName email mobileNumber",
+      })
+      .populate({
+        path: "membershipPlan",
+        select: "name amount durationInDays",
+      })
+      .lean();
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment record not found",
+      });
+    }
+
+    /* =========================
+       DETERMINE PAYMENT MODE
+    ========================= */
+    const isRazorpayPayment = !!payment.razorpay?.paymentId;
+
+    /* =========================
+       FORMAT RESPONSE (UI READY)
+    ========================= */
+    const response = {
+      _id: payment._id,
+
+      status: payment.status,
+      amount: payment.amount,
+      paidAt: payment.paidAt,
+      createdAt: payment.createdAt,
+
+      /* =========================
+         USER / COMPANY
+      ========================= */
+      user: payment.user
+        ? {
+            _id: payment.user._id,
+            userId: payment.user.userId,
+            companyName: payment.user.companyName,
+            email: payment.user.email,
+            mobileNumber: payment.user.mobileNumber,
+          }
+        : null,
+
+      companyName:
+        payment.registrationSnapshot?.companyName || payment.user?.companyName,
+
+      /* =========================
+         MEMBERSHIP PLAN
+      ========================= */
+      membershipPlan: payment.membershipPlan
+        ? {
+            _id: payment.membershipPlan._id,
+            name: payment.membershipPlan.name,
+            amount: payment.membershipPlan.amount,
+            durationInDays: payment.membershipPlan.durationInDays,
+          }
+        : null,
+
+      /* =========================
+         PAYMENT INFO (ADMIN)
+      ========================= */
+      adminPanelPayment: !isRazorpayPayment
+        ? {
+            paymentSource: payment.paymentSource,
+            transactionId: payment.transactionId,
+          }
+        : null,
+
+      /* =========================
+         RAZORPAY INFO
+      ========================= */
+      razorpay: isRazorpayPayment
+        ? {
+            orderId: payment.razorpay?.orderId,
+            paymentId: payment.razorpay?.paymentId,
+          }
+        : null,
+
+      /* =========================
+         FORM CONTROL FLAGS
+      ========================= */
+      isEditable: !isRazorpayPayment,
+      paymentType: isRazorpayPayment ? "RAZORPAY" : "ADMIN",
+    };
+
+    return res.status(200).json({
+      success: true,
+      data: response,
+    });
+  } catch (err) {
+    console.error("View Payment Record Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch payment record",
+    });
+  }
+};
+
 module.exports = {
   createOrder,
   razorpayWebhook,
   fetchPaymentRecords,
+  editPaymentRecord,
+  viewIndPaymentRecord,
   // fetchPaymentFilters,
 };
