@@ -12,6 +12,7 @@ const postNotification = async (req, res) => {
       targetType,
       businessCategories,
       targetUsers,
+      url,
     } = req.body;
 
     /* =========================
@@ -116,6 +117,7 @@ const postNotification = async (req, res) => {
       message,
       type: type || "INFO",
       targetType,
+      url,
       businessCategories: targetType === "BUSINESS_CATEGORY" ? categoryIds : [],
       targetUsers: targetType === "SELECTED_COMPANIES" ? userIds : [],
       createdBy: "ADMIN",
@@ -270,9 +272,165 @@ const getCompaniesByCategory = async (req, res) => {
   }
 };
 
+const getAllNotifications = async (req, res) => {
+  try {
+    const notifications = await Notification.find({})
+      .populate({
+        path: "targetUsers",
+        select: "_id companyName userId",
+      })
+      .populate({
+        path: "businessCategories",
+        select: "_id name",
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const formatted = notifications.map((n) => ({
+      _id: n._id,
+      title: n.title,
+      message: n.message,
+      type: n.type,
+      targetType: n.targetType,
+      url: n.url,
+      sentAt: n.sentAt,
+
+      // BUSINESS CATEGORY TARGET
+      businessCategories:
+        n.targetType === "BUSINESS_CATEGORY"
+          ? n.businessCategories.map((c) => ({
+              id: c._id,
+              name: c.name,
+            }))
+          : [],
+
+      // SELECTED COMPANIES TARGET
+      companies:
+        n.targetType === "SELECTED_COMPANIES"
+          ? n.targetUsers.map((u) => ({
+              id: u._id,
+              companyName: u.companyName,
+              userId: u.userId,
+            }))
+          : [],
+
+      createdBy: n.createdBy,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: formatted,
+    });
+  } catch (err) {
+    console.error("Get Notifications Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch notifications",
+    });
+  }
+};
+
+const deleteIndividualNotification = async (req, res) => {
+  try {
+    const { notificationId } = req.params;
+
+    /* =========================
+       VALIDATE NOTIFICATION ID
+    ========================= */
+    if (!mongoose.Types.ObjectId.isValid(notificationId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid notification ID",
+      });
+    }
+
+    /* =========================
+       HARD DELETE
+    ========================= */
+    const deletedNotification = await Notification.findByIdAndDelete(
+      notificationId
+    );
+
+    if (!deletedNotification) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Notification permanently deleted",
+      data: {
+        _id: deletedNotification._id,
+      },
+    });
+  } catch (err) {
+    console.error("Hard Delete Notification Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete notification",
+    });
+  }
+};
+
+const toggleNotificationStatus = async (req, res) => {
+  try {
+    const { notificationId } = req.params;
+
+    /* =========================
+       VALIDATE ID
+    ========================= */
+    if (!mongoose.Types.ObjectId.isValid(notificationId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid notification ID",
+      });
+    }
+
+    /* =========================
+       FIND NOTIFICATION
+    ========================= */
+    const notification = await Notification.findById(notificationId);
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found",
+      });
+    }
+
+    /* =========================
+       TOGGLE STATUS
+    ========================= */
+    notification.isActive = !notification.isActive;
+    await notification.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Notification ${
+        notification.isActive ? "activated" : "deactivated"
+      } successfully`,
+      data: {
+        _id: notification._id,
+        isActive: notification.isActive,
+      },
+    });
+  } catch (err) {
+    console.error("Toggle Notification Status Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update notification status",
+    });
+  }
+};
+
 module.exports = {
   postNotification,
   getBusinessCategories,
   getCompanies,
   getCompaniesByCategory,
+  getAllNotifications,
+  deleteIndividualNotification,
+  toggleNotificationStatus,
 };

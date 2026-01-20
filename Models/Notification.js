@@ -47,6 +47,9 @@ const NotificationSchema = new mongoose.Schema(
         ref: "Users",
       },
     ],
+    url: {
+      type: String,
+    },
 
     /* =========================
        DELIVERY META

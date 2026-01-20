@@ -26,35 +26,14 @@ app.use((req, res, next) => {
     express.json()(req, res, next);
   }
 });
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files
 app.use(express.static(path.join(__dirname, "public")));
 
 dbConnect();
-
-// Allowed origins
-// const allowedOrigins = [
-//   "http://localhost:5173",
-//   // "https://api.bouncyboxstudio.in",
-//   "https://bouncyboxstudio.in",
-// ];
-
-// // CORS Setup
-// app.use(
-//   cors({
-//     origin: function (origin, callback) {
-//       // allow requests with no origin (like Postman or curl)
-//       if (!origin) return callback(null, true);
-//       if (allowedOrigins.indexOf(origin) === -1) {
-//         const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
-//         return callback(new Error(msg), false);
-//       }
-//       return callback(null, true);
-//     },
-//     credentials: true,
-//   })
-// );
 
 app.use(
   cors({

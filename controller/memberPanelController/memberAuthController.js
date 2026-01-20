@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const User = require("../../Models/Users");
 const { decrypt } = require("../../utils/encryption"); // same util you already use
@@ -6,6 +7,7 @@ const { encrypt } = require("../../utils/encryption");
 const sendOtpMail = require("../../utils/sendOtpMail");
 const { generateOTP } = require("../../utils/generateOtp");
 const sendPasswordResetSuccessMail = require("../../utils/sendPasswordResetSuccessMail");
+const Notification = require("../../Models/Notification");
 
 const memberLogin = async (req, res) => {
   try {
@@ -211,8 +213,85 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const getUserNotifications = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    const skip = (page - 1) * limit;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID",
+      });
+    }
+
+    const user = await User.findById(userId).select(
+      "_id companyName businessCategory"
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const filter = {
+      isActive: true,
+      $or: [
+        { targetType: "ALL" },
+        {
+          targetType: "BUSINESS_CATEGORY",
+          businessCategories: user.businessCategory,
+        },
+        {
+          targetType: "SELECTED_COMPANIES",
+          targetUsers: user._id,
+        },
+      ],
+    };
+
+    const total = await Notification.countDocuments(filter);
+
+    const notifications = await Notification.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      company: user.companyName,
+      data: notifications.map((n) => ({
+        _id: n._id,
+        title: n.title,
+        message: n.message,
+        type: n.type,
+        url: n.url,
+        sentAt: n.sentAt,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        hasMore: skip + notifications.length < total,
+      },
+    });
+  } catch (err) {
+    console.error("Get User Notifications Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch notifications",
+    });
+  }
+};
+
+
 module.exports = {
   memberLogin,
   forgotPassword,
   resetPassword,
+  getUserNotifications,
 };

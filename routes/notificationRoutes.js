@@ -12,5 +12,17 @@ router.post(
   "/companies-by-category",
   notificationController.getCompaniesByCategory
 );
+router.get(
+  "/companies/notifications",
+  notificationController.getAllNotifications
+);
+router.delete(
+  "/delete/notification/:notificationId",
+  notificationController.deleteIndividualNotification
+);
+router.patch(
+  "/toggle/notification/:notificationId",
+  notificationController.toggleNotificationStatus
+);
 
 module.exports = router;
