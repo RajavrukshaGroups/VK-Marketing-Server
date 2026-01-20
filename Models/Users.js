@@ -158,6 +158,11 @@ const UsersSchema = new mongoose.Schema(
       },
     },
 
+    forgotPassword: {
+      otp: String,
+      otpExpiresAt: Date,
+    },
+
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

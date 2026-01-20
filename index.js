@@ -10,6 +10,9 @@ const membershipPlansRoutes = require("./routes/membershipPlansRoutes.js");
 const paymentRoutes = require("./routes/paymentRoutes.js");
 const notificationRoutes = require("./routes/notificationRoutes.js");
 
+//memberpanel routes
+const memberAuthRoutes = require("./routes/MemberPanelRoutes/meberPanelLoginRoutes.js");
+
 const app = express();
 const port = process.env.PORT;
 
@@ -77,6 +80,9 @@ app.use("/admin/category", adminCategoryRoute);
 app.use("/admin/businessplans", membershipPlansRoutes);
 app.use("/admin/payment", paymentRoutes);
 app.use("/admin/notification", notificationRoutes);
+
+//memberpanel routes
+app.use("/member/auth", memberAuthRoutes);
 
 app.get("/", (req, res) => {
   res.send("Hello from bouncy box server");
