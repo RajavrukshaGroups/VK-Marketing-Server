@@ -5,7 +5,13 @@ const MemberAuthController = require("../../controller/memberPanelController/mem
 router.post("/login", MemberAuthController.memberLogin);
 router.post("/forgot-password", MemberAuthController.forgotPassword);
 router.post("/reset-password", MemberAuthController.resetPassword);
-router.get("/user/notification/:userId", MemberAuthController.getUserNotifications);
-
+router.get(
+  "/user/notification/:userId",
+  MemberAuthController.getUserNotifications,
+);
+router.get(
+  "/user/certificate/:userId",
+  MemberAuthController.getCertificateOnPayment,
+);
 
 module.exports = router;

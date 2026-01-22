@@ -8,6 +8,7 @@ const sendOtpMail = require("../../utils/sendOtpMail");
 const { generateOTP } = require("../../utils/generateOtp");
 const sendPasswordResetSuccessMail = require("../../utils/sendPasswordResetSuccessMail");
 const Notification = require("../../Models/Notification");
+const Payment = require("../../Models/Payment");
 
 const memberLogin = async (req, res) => {
   try {
@@ -68,7 +69,7 @@ const memberLogin = async (req, res) => {
         role: "MEMBER",
       },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     return res.status(200).json({
@@ -197,7 +198,7 @@ const resetPassword = async (req, res) => {
     await sendPasswordResetSuccessMail(
       user.email,
       user.userId,
-      user.companyName
+      user.companyName,
     );
 
     return res.json({
@@ -228,7 +229,7 @@ const getUserNotifications = async (req, res) => {
     }
 
     const user = await User.findById(userId).select(
-      "_id companyName businessCategory"
+      "_id companyName businessCategory",
     );
 
     if (!user) {
@@ -288,10 +289,83 @@ const getUserNotifications = async (req, res) => {
   }
 };
 
+const getCertificateOnPayment = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log("user Id", userId);
+
+    // 1️⃣ Validate Mongo ID
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).send("Invalid user id");
+    }
+
+    // 2️⃣ Fetch User
+    const user = await User.findById(userId)
+      .populate("membership.plan")
+      .populate("businessCategory");
+
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+
+    // 3️⃣ Membership must be ACTIVE
+    if (user.membership.status !== "ACTIVE") {
+      return res
+        .status(403)
+        .send("Certificate available only for active members");
+    }
+
+    // 4️⃣ Fetch latest successful payment
+    const payment = await Payment.findOne({
+      user: user._id,
+      status: "SUCCESS",
+    })
+      .populate("membershipPlan")
+      .sort({ paidAt: -1 });
+
+    if (!payment) {
+      return res
+        .status(403)
+        .send("No successful payment found for certificate");
+    }
+
+    // 5️⃣ Certificate issue date
+    const issuedDate = new Date(
+      user.membership.startedAt || payment.paidAt,
+    ).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+
+    console.log("user details", user);
+
+    // 6️⃣ Render Certificate
+    res.render("certificates/membershipCertificate", {
+      // Dynamic data
+      companyName: user.companyName,
+      membershipType:
+        user.membership.plan?.name?.toUpperCase() || "ORDINARY MEMBER",
+      issuedDate,
+
+      // Static Assets
+      fkcciLogo: "/assets/FKCCI_IMAGE.png",
+      sirMVLogo: "/assets/sirmv.jpg",
+      // memberSign: "/assets/MEMBER_SIGN.jpeg",
+      presidentSign: "/assets/president_sign.jpeg",
+      secretarySign: "/assets/secretary_sign.jpg",
+      since2016Img: "/assets/since2016new1.webp",
+    });
+  } catch (error) {
+    console.error("Certificate Generation Error:", error);
+    res.status(500).send("Unable to generate certificate");
+  }
+};
 
 module.exports = {
   memberLogin,
   forgotPassword,
   resetPassword,
   getUserNotifications,
+  getCertificateOnPayment,
 };
