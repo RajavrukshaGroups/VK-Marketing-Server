@@ -352,8 +352,10 @@ const getCertificateOnPayment = async (req, res) => {
       fkcciLogo: "/assets/FKCCI_IMAGE.png",
       sirMVLogo: "/assets/sirmv.jpg",
       // memberSign: "/assets/MEMBER_SIGN.jpeg",
-      presidentSign: "/assets/president_sign.jpeg",
-      secretarySign: "/assets/secretary_sign.jpg",
+      // presidentSign: "/assets/president_sign.jpeg",
+      presidentSign: "/assets/president_sign_new-removebg-preview_new.webp",
+      // secretarySign: "/assets/secretary_sign.jpg",
+      secretarySign: "/assets/gen_sec-removebg-preview_new.webp",
       since2016Img: "/assets/since2016new1.webp",
     });
   } catch (error) {

@@ -9,6 +9,7 @@ const adminCategoryRoute = require("./routes/categoryRoutes.js");
 const membershipPlansRoutes = require("./routes/membershipPlansRoutes.js");
 const paymentRoutes = require("./routes/paymentRoutes.js");
 const notificationRoutes = require("./routes/notificationRoutes.js");
+const dashBoardRoutes = require("./routes/dashboardRoutes.js");
 
 //memberpanel routes
 const memberAuthRoutes = require("./routes/MemberPanelRoutes/meberPanelLoginRoutes.js");
@@ -39,13 +40,13 @@ app.use(
   cors({
     origin: [
       // "https://admin-panel.rajavrukshagroup.in",
-      "http://localhost:5174",
-      "http://localhost:3001",
+      "http://localhost:5173",
+      "http://localhost:3000",
       // "https://rrplserver.rajavrukshagroup.in",
       // "http://localhost:5173",
     ],
     credentials: true,
-  })
+  }),
 );
 
 // app.post("/_test-webhook", (req, res) => {
@@ -59,6 +60,7 @@ app.use("/admin/category", adminCategoryRoute);
 app.use("/admin/businessplans", membershipPlansRoutes);
 app.use("/admin/payment", paymentRoutes);
 app.use("/admin/notification", notificationRoutes);
+app.use("/admin/dashboard", dashBoardRoutes);
 
 //memberpanel routes
 app.use("/member/auth", memberAuthRoutes);

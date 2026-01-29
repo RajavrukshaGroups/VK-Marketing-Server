@@ -8,7 +8,7 @@ const { sendWelcomeMail } = require("../utils/mailer");
 const { generateUserId } = require("../utils/generateUserId");
 const { encrypt, decrypt } = require("../utils/encryption");
 
-const MAX_REFERRALS_PER_USER = 4;
+// const MAX_REFERRALS_PER_USER = 4;
 
 /* =========================================================
    CREATE USER (ADMIN / DIRECT REGISTRATION)
@@ -122,12 +122,12 @@ const createUser = async (req, res) => {
         "referral.referredByUser": refUser._id,
       });
 
-      if (referralCount >= MAX_REFERRALS_PER_USER) {
-        return res.status(403).json({
-          success: false,
-          message: "Referral limit exceeded",
-        });
-      }
+      // if (referralCount >= MAX_REFERRALS_PER_USER) {
+      //   return res.status(403).json({
+      //     success: false,
+      //     message: "Referral limit exceeded",
+      //   });
+      // }
 
       referralData = {
         source: "USER",

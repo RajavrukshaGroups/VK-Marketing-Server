@@ -10,7 +10,7 @@ const { generatePassword } = require("../utils/password");
 const { encrypt } = require("../utils/encryption");
 const { sendWelcomeMail } = require("../utils/mailer");
 
-const MAX_REFERRALS_PER_USER = 4;
+// const MAX_REFERRALS_PER_USER = 4;
 
 /* =========================
    CREATE RAZORPAY ORDER
@@ -293,9 +293,9 @@ const razorpayWebhook = async (req, res) => {
         "referral.referredByUser": refUser._id,
       });
 
-      if (referralCount >= MAX_REFERRALS_PER_USER) {
-        return res.json({ received: false });
-      }
+      // if (referralCount >= MAX_REFERRALS_PER_USER) {
+      //   return res.json({ received: false });
+      // }
 
       referralData = {
         source: "USER",
@@ -388,7 +388,25 @@ const fetchPaymentRecords = async (req, res) => {
     /* =========================
        FETCH PAYMENTS
     ========================= */
-    const [payments, totalPayments] = await Promise.all([
+    // const [payments, totalPayments] = await Promise.all([
+    //   Payment.find(query)
+    //     .populate({
+    //       path: "user",
+    //       select: "userId companyName email mobileNumber",
+    //     })
+    //     .populate({
+    //       path: "membershipPlan",
+    //       select: "name amount durationInDays",
+    //     })
+    //     .sort({ createdAt: -1 })
+    //     .skip(skip)
+    //     .limit(limit)
+    //     .lean(),
+
+    //   Payment.countDocuments(query),
+    // ]);
+
+    const [payments, totalPayments, totalAmountResult] = await Promise.all([
       Payment.find(query)
         .populate({
           path: "user",
@@ -404,7 +422,19 @@ const fetchPaymentRecords = async (req, res) => {
         .lean(),
 
       Payment.countDocuments(query),
+
+      Payment.aggregate([
+        { $match: query },
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: "$amount" },
+          },
+        },
+      ]),
     ]);
+
+    const totalAmount = totalAmountResult[0]?.totalAmount || 0;
 
     /* =========================
        COLLECT REFERRER USER IDS
@@ -413,7 +443,7 @@ const fetchPaymentRecords = async (req, res) => {
       ...new Set(
         payments
           .map((p) => p.registrationSnapshot?.referral?.referredByUserId)
-          .filter(Boolean)
+          .filter(Boolean),
       ),
     ];
 
@@ -423,7 +453,7 @@ const fetchPaymentRecords = async (req, res) => {
     const referrers = referredUserIds.length
       ? await User.find(
           { userId: { $in: referredUserIds } },
-          "userId companyName"
+          "userId companyName",
         ).lean()
       : [];
 
@@ -506,6 +536,7 @@ const fetchPaymentRecords = async (req, res) => {
         totalPayments,
         limit,
       },
+      totalAmount,
     });
   } catch (err) {
     console.error("Fetch Payment Records Error:", err);
@@ -783,6 +814,80 @@ const viewIndPaymentRecord = async (req, res) => {
   }
 };
 
+const getUserReferralDetails = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // 1️⃣ Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    // 2️⃣ Fetch referrer info
+    const referrer = await User.findById(userId).select(
+      "userId companyName email",
+    );
+
+    if (!referrer) {
+      return res.status(404).json({ message: "Referrer not found" });
+    }
+
+    // 3️⃣ Fetch referred users
+    const referredUsers = await User.find({
+      "referral.referredByUser": referrer._id,
+    }).select("userId companyName email membership.status createdAt");
+
+    const referredUserIds = referredUsers.map((u) => u._id);
+
+    // 4️⃣ Fetch payments made by referred users
+    const payments = await Payment.find({
+      user: { $in: referredUserIds },
+      status: "SUCCESS",
+    }).select("user amount");
+
+    // 5️⃣ Calculate total amount
+    const totalReferralAmount = payments.reduce(
+      (sum, payment) => sum + (payment.amount || 0),
+      0,
+    );
+
+    // 6️⃣ Map user-wise amount (optional but very useful)
+    const amountByUser = {};
+    payments.forEach((p) => {
+      const key = p.user.toString();
+      amountByUser[key] = (amountByUser[key] || 0) + (p.amount || 0);
+    });
+
+    // 7️⃣ Response
+    res.status(200).json({
+      referrer: {
+        _id: referrer._id,
+        userId: referrer.userId,
+        companyName: referrer.companyName,
+        email: referrer.email,
+      },
+      totalReferrals: referredUsers.length,
+      // totalReferralAmount, // 💰 TOTAL AMOUNT GENERATED
+      referredUsers: referredUsers.map((user) => ({
+        _id: user._id,
+        userId: user.userId,
+        companyName: user.companyName,
+        email: user.email,
+        membershipStatus: user.membership?.status || "PENDING",
+        joinedAt: user.createdAt,
+        amountPaid: amountByUser[user._id.toString()] || 0, // 💰 PER USER
+      })),
+    });
+  } catch (error) {
+    console.error("Get User Referral Details Error:", error);
+    res.status(500).json({ message: "Unable to fetch referral details" });
+  }
+};
+
+module.exports = {
+  getUserReferralDetails,
+};
+
 module.exports = {
   createOrder,
   razorpayWebhook,
@@ -790,4 +895,5 @@ module.exports = {
   editPaymentRecord,
   viewIndPaymentRecord,
   // fetchPaymentFilters,
+  getUserReferralDetails,
 };

@@ -15,14 +15,18 @@ router.post("/create-order", PaymentController.createOrder);
 router.post(
   "/razorpay-webhook",
   express.raw({ type: "application/json" }),
-  PaymentController.razorpayWebhook
+  PaymentController.razorpayWebhook,
 );
 router.get("/get-payment-records", PaymentController.fetchPaymentRecords);
 router.put(
   "/admin/payment/edit/:paymentId",
-  PaymentController.editPaymentRecord
+  PaymentController.editPaymentRecord,
 );
 router.get("/admin/view-payment/:id", PaymentController.viewIndPaymentRecord);
+router.get(
+  "/referrals/:userId",
+  PaymentController.getUserReferralDetails,
+);
 // router.get("/filters", PaymentController.fetchPaymentFilters);
 
 module.exports = router;
