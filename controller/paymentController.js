@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const razorpay = require("../config/razorpay");
 const Payment = require("../Models/Payment");
 const User = require("../Models/Users");
+const Category = require("../Models/Category");
 const MembershipPlan = require("../Models/MembershipPlan");
 const { generateUserId } = require("../utils/generateUserId");
 const { generatePassword } = require("../utils/password");
@@ -33,6 +34,7 @@ const createOrder = async (req, res) => {
       mobileNumber,
       email,
       businessCategory,
+      customBusinessCategory,
       businessNature,
       majorCommodities,
       gstNumber,
@@ -68,10 +70,10 @@ const createOrder = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Email is required" });
 
-    if (!businessCategory)
-      return res
-        .status(400)
-        .json({ success: false, message: "Business category is required" });
+    // if (!businessCategory)
+    //   return res
+    //     .status(400)
+    //     .json({ success: false, message: "Business category is required" });
 
     /* =========================
        BUSINESS NATURE VALIDATION
@@ -117,7 +119,50 @@ const createOrder = async (req, res) => {
     /* =========================
        FORMAT VALIDATIONS
     ========================= */
-    if (!mongoose.Types.ObjectId.isValid(businessCategory)) {
+
+    let finalBusinessCategoryId = businessCategory;
+
+    // If custom category provided
+    if (!businessCategory && customBusinessCategory) {
+      const name = customBusinessCategory.trim();
+
+      let category = await Category.findOne({
+        name: new RegExp(`^${name}$`, "i"),
+      });
+
+      if (!category) {
+        category = await Category.create({
+          name,
+          isActive: true,
+        });
+      }
+
+      finalBusinessCategoryId = category._id;
+    }
+
+    // ✅ VALIDATE AFTER resolving
+    if (!finalBusinessCategoryId) {
+      return res.status(400).json({
+        success: false,
+        message: "Business category is required",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(finalBusinessCategoryId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid business category",
+      });
+    }
+
+    // if (!mongoose.Types.ObjectId.isValid(businessCategory)) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Invalid business category",
+    //   });
+    // }
+
+    if (!mongoose.Types.ObjectId.isValid(finalBusinessCategoryId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid business category",
@@ -205,7 +250,7 @@ const createOrder = async (req, res) => {
         address,
         mobileNumber,
         email,
-        businessCategory,
+        businessCategory: finalBusinessCategoryId,
         businessNature,
         majorCommodities,
         gstNumber,
