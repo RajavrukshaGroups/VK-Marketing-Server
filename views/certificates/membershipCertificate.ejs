@@ -32,9 +32,8 @@
       /* ================= HEADER ================= */
       .header {
         display: grid;
-        grid-template-columns: 1fr 1.5fr 1fr;
+        grid-template-columns: 1fr 2fr 1fr; /* center wider */
         align-items: center;
-        margin-bottom: 10px;
       }
 
       .header-right {
@@ -59,7 +58,8 @@
       }
 
       .fkcci-logo {
-        width: 95px;
+        width: 140px; /* increased from 95px */
+        max-width: 140px;
       }
 
       /* ===== Logo captions ===== */
@@ -80,6 +80,7 @@
         color: #b11212;
         font-weight: bold;
         font-size: 18px;
+        white-space: nowrap; /* ⬅ prevents line break */
       }
 
       .center-text-block .english {
@@ -88,6 +89,7 @@
         font-weight: bold;
         color: #1e3a8a;
         letter-spacing: 0.6px;
+        white-space: nowrap; /* ⬅ prevents line break */
       }
 
       /* ================= CONTENT ================= */
@@ -152,19 +154,22 @@
 
           <!-- CENTER -->
           <div class="header-center">
-            <img src="<%= since2016Img %>" class="since-img" />
+            <!-- <img src="<%= since2016Img %>" class="since-img" /> -->
             <div class="center-text-block">
-              <div class="kannada">ಕರ್ನಾಟಕ ವಾಣಿಜ್ಯ ಮತ್ತು ಕೈಗಾರಿಕಾ ಮಹಾಸಂಘ</div>
+              <!-- <div class="kannada">ಕರ್ನಾಟಕ ವಾಣಿಜ್ಯ ಮತ್ತು ಕೈಗಾರಿಕಾ ಮಹಾಸಂಘ</div> -->
+              <div class="kannada">ಅಖಿಲ ಭಾರತ ವ್ಯಾಪಾರ ಮತ್ತು ಕೈಗಾರಿಕಾ ವೇದಿಕೆ</div>
               <div class="english">
-                FEDERATION OF KARNATAKA CHAMBERS OF COMMERCE & INDUSTRY (FKCCI)
+                <!-- FEDERATION OF KARNATAKA CHAMBERS OF COMMERCE & INDUSTRY (FKCCI) -->
+                ALL INDIA TRADE AND INDUSTRIES FORUM
               </div>
             </div>
           </div>
 
           <!-- RIGHT -->
           <div class="header-right">
-            <img src="<%= fkcciLogo %>" class="fkcci-logo" />
-            <div class="logo-caption">Estd. 1916</div>
+            <!-- <img src="<%= fkcciLogo %>" class="fkcci-logo" /> -->
+            <img src="<%=aitiflogo %>" class="fkcci-logo" />
+            <!-- <div class="logo-caption">Estd. 1916</div> -->
           </div>
         </div>
 
@@ -174,9 +179,8 @@
           <div class="company"><%= companyName %></div>
           has been enrolled to
           <strong><%= membershipType %></strong>
-          and are entitled to all the privileges of Membership as set forth in
-          the Bylaws of the Federation of Karnataka Chambers of Commerce and
-          Industry.
+          and are entitled to all the privileges of membership as set forth in
+          the Bylaws of the All India Trade and Industries Forum.
         </div>
 
         <!-- FOOTER -->

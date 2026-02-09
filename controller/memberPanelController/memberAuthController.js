@@ -357,6 +357,7 @@ const getCertificateOnPayment = async (req, res) => {
       // secretarySign: "/assets/secretary_sign.jpg",
       secretarySign: "/assets/gen_sec-removebg-preview_new.webp",
       since2016Img: "/assets/since2016new1.webp",
+      aitiflogo:"/assets/AITIF_new_logo.png",
     });
   } catch (error) {
     console.error("Certificate Generation Error:", error);
