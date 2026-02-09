@@ -46,7 +46,7 @@ app.use(
       // "http://localhost:5173",
       "https://aitif.in",
       "https://test.aitif.in",
-      "http://admin.aitif.in",
+      "https://admin.aitif.in",
     ],
     credentials: true,
   }),
