@@ -45,6 +45,7 @@ app.use(
       // "https://rrplserver.rajavrukshagroup.in",
       // "http://localhost:5173",
       "https://aitif.in",
+      "https://test.aitif.in",
       "http://admin.aitif.in",
     ],
     credentials: true,
