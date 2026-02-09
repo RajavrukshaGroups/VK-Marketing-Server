@@ -40,10 +40,12 @@ app.use(
   cors({
     origin: [
       // "https://admin-panel.rajavrukshagroup.in",
-      "http://localhost:5173",
-      "http://localhost:3000",
+      // "http://localhost:5173",
+      // "http://localhost:3000",
       // "https://rrplserver.rajavrukshagroup.in",
       // "http://localhost:5173",
+      "https://aitif.in",
+      "http://admin.aitif.in",
     ],
     credentials: true,
   }),
@@ -66,7 +68,7 @@ app.use("/admin/dashboard", dashBoardRoutes);
 app.use("/member/auth", memberAuthRoutes);
 
 app.get("/", (req, res) => {
-  res.send("Hello from bouncy box server");
+  res.send("Hello from aitif server");
 });
 
 app.listen(port, () => {
