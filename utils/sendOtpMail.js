@@ -13,7 +13,7 @@ const sendOtpMail = async (toEmail, otp) => {
   });
 
   await transporter.sendMail({
-    from: `"FTII Support" <${process.env.SMTP_USER}>`,
+    from: `"AITIF Support" <${process.env.SMTP_USER}>`,
     to: toEmail,
     subject: "Password Reset OTP",
     html: `

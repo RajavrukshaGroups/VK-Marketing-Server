@@ -20,7 +20,7 @@ const sendPasswordResetSuccessMail = async (email, userId, companyName) => {
     // <p>Hello,</p>
     // <p>Your password has been reset successfully.</p>
     // `,
-    from: `"FTII Karnataka" <${process.env.SMTP_USER}>`,
+    from: `"AITIF Karnataka" <${process.env.SMTP_USER}>`,
     to: email,
     subject: "Your Password Has Been Reset",
     html: `
