@@ -1,7 +1,7 @@
 module.exports=[
     {
-        email:"admin@vkmarketing.com",
-        password:"Admin@123",
+        email:"admin@vkmarketing26.com",
+        password:"Adminvkmc@1960",
         role:"admin"
     }
 ]
