@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
 });
 
 exports.sendWelcomeMail = async ({ email, companyName, password, userId }) => {
-  const loginUrl = "https://test.aitif.in/member/login";
+  const loginUrl = "https://aitif.in/member/login";
 
   await transporter.sendMail({
     from: `"AITIF Karnataka" <${process.env.SMTP_USER}>`,
