@@ -402,6 +402,256 @@ const razorpayWebhook = async (req, res) => {
   }
 };
 
+// const fetchPaymentRecords = async (req, res) => {
+//   try {
+//     const page = parseInt(req.query.page) || 1;
+//     const limit = parseInt(req.query.limit) || 15;
+//     const skip = (page - 1) * limit;
+//     const search = req.query.search?.trim();
+
+//     /* =========================
+//        SEARCH FILTER
+//     ========================= */
+//     let query = {};
+
+//     if (search) {
+//       query = {
+//         $or: [
+//           {
+//             "registrationSnapshot.companyName": {
+//               $regex: search,
+//               $options: "i",
+//             },
+//           },
+//           { "registrationSnapshot.email": { $regex: search, $options: "i" } },
+//           { "razorpay.orderId": { $regex: search, $options: "i" } },
+//           { "razorpay.paymentId": { $regex: search, $options: "i" } },
+//         ],
+//       };
+//     }
+
+//     /* =========================
+//        FETCH PAYMENTS
+//     ========================= */
+//     // const [payments, totalPayments] = await Promise.all([
+//     //   Payment.find(query)
+//     //     .populate({
+//     //       path: "user",
+//     //       select: "userId companyName email mobileNumber",
+//     //     })
+//     //     .populate({
+//     //       path: "membershipPlan",
+//     //       select: "name amount durationInDays",
+//     //     })
+//     //     .sort({ createdAt: -1 })
+//     //     .skip(skip)
+//     //     .limit(limit)
+//     //     .lean(),
+
+//     //   Payment.countDocuments(query),
+//     // ]);
+
+//     const [payments, totalPayments, totalAmountResult] = await Promise.all([
+//       Payment.find(query)
+//         .populate({
+//           path: "user",
+//           select: "userId companyName email mobileNumber",
+//         })
+//         .populate({
+//           path: "membershipPlan",
+//           select: "name amount durationInDays",
+//         })
+//         .sort({ createdAt: -1 })
+//         .skip(skip)
+//         .limit(limit)
+//         .lean(),
+
+//       Payment.countDocuments(query),
+
+//       Payment.aggregate([
+//         { $match: query },
+//         {
+//           $group: {
+//             _id: null,
+//             totalAmount: { $sum: "$amount" },
+//           },
+//         },
+//       ]),
+//     ]);
+
+//     const totalAmount = totalAmountResult[0]?.totalAmount || 0;
+
+//     /* =========================
+//        COLLECT REFERRER USER IDS
+//     ========================= */
+//     const referredUserIds = [
+//       ...new Set(
+//         payments
+//           .map((p) => p.registrationSnapshot?.referral?.referredByUserId)
+//           .filter(Boolean),
+//       ),
+//     ];
+
+//     /* =========================
+//        FETCH REFERRER USERS
+//     ========================= */
+//     const referrers = referredUserIds.length
+//       ? await User.find(
+//           { userId: { $in: referredUserIds } },
+//           "userId companyName",
+//         ).lean()
+//       : [];
+
+//     const referrerMap = referrers.reduce((acc, r) => {
+//       acc[r.userId] = r;
+//       return acc;
+//     }, {});
+
+//     /* =========================
+//        FORMAT RESPONSE
+//     ========================= */
+//     const formattedPayments = payments.map((p) => {
+//       const referralSnapshot = p.registrationSnapshot?.referral;
+//       const referrer =
+//         referralSnapshot?.referredByUserId &&
+//         referrerMap[referralSnapshot.referredByUserId];
+
+//       return {
+//         _id: p._id,
+//         status: p.status,
+//         amount: p.amount,
+//         paidAt: p.paidAt,
+//         createdAt: p.createdAt,
+
+//         adminPanelPayment: {
+//           source: p.paymentSource || "ADMIN",
+//           transactionId: p.transactionId || null,
+//         },
+//         companyName: p.registrationSnapshot?.companyName,
+//         businessNature: p.registrationSnapshot?.businessNature || null,
+//         email: p.registrationSnapshot?.email,
+//         mobileNumber: p.registrationSnapshot?.mobileNumber,
+
+//         membershipPlan: p.membershipPlan
+//           ? {
+//               _id: p.membershipPlan._id,
+//               name: p.membershipPlan.name,
+//               amount: p.membershipPlan.amount,
+//               durationInDays: p.membershipPlan.durationInDays,
+//             }
+//           : null,
+
+//         user: p.user
+//           ? {
+//               _id: p.user._id,
+//               userId: p.user.userId,
+//               companyName: p.user.companyName,
+//               email: p.user.email,
+//               mobileNumber: p.user.mobileNumber,
+//             }
+//           : null,
+
+//         referral: {
+//           source: referralSnapshot?.source || "ADMIN",
+//           referredByUserId: referralSnapshot?.referredByUserId || null,
+//           referredByCompanyName: referrer?.companyName || null,
+//         },
+
+//         // razorpay: {
+//         //   orderId: p.razorpay?.orderId,
+//         //   paymentId: p.razorpay?.paymentId,
+//         // },
+
+//         /* ================= RAZORPAY (ONLY IF EXISTS) ================= */
+//         razorpay: p.razorpay?.orderId
+//           ? {
+//               orderId: p.razorpay.orderId,
+//               paymentId: p.razorpay.paymentId,
+//             }
+//           : null,
+//       };
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       data: formattedPayments,
+//       pagination: {
+//         currentPage: page,
+//         totalPages: Math.ceil(totalPayments / limit),
+//         totalPayments,
+//         limit,
+//       },
+//       totalAmount,
+//     });
+//   } catch (err) {
+//     console.error("Fetch Payment Records Error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch payment records",
+//     });
+//   }
+// };
+
+// const fetchPaymentFilters = async (req, res) => {
+//   try {
+//     const payments = await Payment.find(
+//       { status: "SUCCESS" },
+//       { registrationSnapshot: 1, membershipPlan: 1 }
+//     )
+//       .populate("membershipPlan", "name")
+//       .lean();
+
+//     const categoriesSet = new Set();
+//     const businessTypesSet = new Set();
+//     const statesSet = new Set();
+//     const districtsSet = new Set();
+//     const taluksSet = new Set();
+//     const membershipPlansMap = new Map();
+
+//     payments.forEach((p) => {
+//       const snap = p.registrationSnapshot;
+
+//       if (snap?.businessCategory) categoriesSet.add(snap.businessCategory);
+
+//       if (Array.isArray(snap?.businessType)) {
+//         snap.businessType.forEach((t) => businessTypesSet.add(t));
+//       }
+
+//       if (snap?.address?.state) statesSet.add(snap.address.state);
+//       if (snap?.address?.district) districtsSet.add(snap.address.district);
+//       if (snap?.address?.taluk) taluksSet.add(snap.address.taluk);
+
+//       if (p.membershipPlan) {
+//         membershipPlansMap.set(
+//           p.membershipPlan._id.toString(),
+//           p.membershipPlan.name
+//         );
+//       }
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       data: {
+//         businessCategories: [...categoriesSet],
+//         businessTypes: [...businessTypesSet],
+//         states: [...statesSet],
+//         districts: [...districtsSet],
+//         taluks: [...taluksSet],
+//         membershipPlans: Array.from(membershipPlansMap, ([id, name]) => ({
+//           _id: id,
+//           name,
+//         })),
+//       },
+//     });
+//   } catch (err) {
+//     console.error("Fetch Payment Filters Error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch filter data",
+//     });
+//   }
+// };
+
 const fetchPaymentRecords = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -433,53 +683,37 @@ const fetchPaymentRecords = async (req, res) => {
     /* =========================
        FETCH PAYMENTS
     ========================= */
-    // const [payments, totalPayments] = await Promise.all([
-    //   Payment.find(query)
-    //     .populate({
-    //       path: "user",
-    //       select: "userId companyName email mobileNumber",
-    //     })
-    //     .populate({
-    //       path: "membershipPlan",
-    //       select: "name amount durationInDays",
-    //     })
-    //     .sort({ createdAt: -1 })
-    //     .skip(skip)
-    //     .limit(limit)
-    //     .lean(),
+    const [payments, totalPayments, totalSuccessAmountResult] =
+      await Promise.all([
+        Payment.find(query)
+          .populate({
+            path: "user",
+            select: "userId companyName email mobileNumber",
+          })
+          .populate({
+            path: "membershipPlan",
+            select: "name amount durationInDays",
+          })
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean(),
 
-    //   Payment.countDocuments(query),
-    // ]);
+        Payment.countDocuments(query),
 
-    const [payments, totalPayments, totalAmountResult] = await Promise.all([
-      Payment.find(query)
-        .populate({
-          path: "user",
-          select: "userId companyName email mobileNumber",
-        })
-        .populate({
-          path: "membershipPlan",
-          select: "name amount durationInDays",
-        })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-
-      Payment.countDocuments(query),
-
-      Payment.aggregate([
-        { $match: query },
-        {
-          $group: {
-            _id: null,
-            totalAmount: { $sum: "$amount" },
+        // Calculate total amount for SUCCESS payments only
+        Payment.aggregate([
+          { $match: { ...query, status: "SUCCESS" } },
+          {
+            $group: {
+              _id: null,
+              totalAmount: { $sum: "$amount" },
+            },
           },
-        },
-      ]),
-    ]);
+        ]),
+      ]);
 
-    const totalAmount = totalAmountResult[0]?.totalAmount || 0;
+    const totalSuccessAmount = totalSuccessAmountResult[0]?.totalAmount || 0;
 
     /* =========================
        COLLECT REFERRER USER IDS
@@ -557,12 +791,6 @@ const fetchPaymentRecords = async (req, res) => {
           referredByCompanyName: referrer?.companyName || null,
         },
 
-        // razorpay: {
-        //   orderId: p.razorpay?.orderId,
-        //   paymentId: p.razorpay?.paymentId,
-        // },
-
-        /* ================= RAZORPAY (ONLY IF EXISTS) ================= */
         razorpay: p.razorpay?.orderId
           ? {
               orderId: p.razorpay.orderId,
@@ -581,7 +809,7 @@ const fetchPaymentRecords = async (req, res) => {
         totalPayments,
         limit,
       },
-      totalAmount,
+      totalSuccessAmount, // Renamed for clarity
     });
   } catch (err) {
     console.error("Fetch Payment Records Error:", err);
@@ -591,67 +819,6 @@ const fetchPaymentRecords = async (req, res) => {
     });
   }
 };
-
-// const fetchPaymentFilters = async (req, res) => {
-//   try {
-//     const payments = await Payment.find(
-//       { status: "SUCCESS" },
-//       { registrationSnapshot: 1, membershipPlan: 1 }
-//     )
-//       .populate("membershipPlan", "name")
-//       .lean();
-
-//     const categoriesSet = new Set();
-//     const businessTypesSet = new Set();
-//     const statesSet = new Set();
-//     const districtsSet = new Set();
-//     const taluksSet = new Set();
-//     const membershipPlansMap = new Map();
-
-//     payments.forEach((p) => {
-//       const snap = p.registrationSnapshot;
-
-//       if (snap?.businessCategory) categoriesSet.add(snap.businessCategory);
-
-//       if (Array.isArray(snap?.businessType)) {
-//         snap.businessType.forEach((t) => businessTypesSet.add(t));
-//       }
-
-//       if (snap?.address?.state) statesSet.add(snap.address.state);
-//       if (snap?.address?.district) districtsSet.add(snap.address.district);
-//       if (snap?.address?.taluk) taluksSet.add(snap.address.taluk);
-
-//       if (p.membershipPlan) {
-//         membershipPlansMap.set(
-//           p.membershipPlan._id.toString(),
-//           p.membershipPlan.name
-//         );
-//       }
-//     });
-
-//     return res.status(200).json({
-//       success: true,
-//       data: {
-//         businessCategories: [...categoriesSet],
-//         businessTypes: [...businessTypesSet],
-//         states: [...statesSet],
-//         districts: [...districtsSet],
-//         taluks: [...taluksSet],
-//         membershipPlans: Array.from(membershipPlansMap, ([id, name]) => ({
-//           _id: id,
-//           name,
-//         })),
-//       },
-//     });
-//   } catch (err) {
-//     console.error("Fetch Payment Filters Error:", err);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to fetch filter data",
-//     });
-//   }
-// };
-
 const editPaymentRecord = async (req, res) => {
   try {
     const { paymentId } = req.params;
