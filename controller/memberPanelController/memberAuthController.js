@@ -352,12 +352,13 @@ const getCertificateOnPayment = async (req, res) => {
       fkcciLogo: "/assets/FKCCI_IMAGE.png",
       sirMVLogo: "/assets/sirmv.jpg",
       // memberSign: "/assets/MEMBER_SIGN.jpeg",
-      // presidentSign: "/assets/president_sign.jpeg",
-      presidentSign: "/assets/president_sign_new-removebg-preview_new.webp",
+      // presidentSign: "/assets/president_sign_new-removebg-preview_new.webp",
+      presidentSign: "/assets/president_sign_23-removebg-preview.png",
+      // presidentSign: "/assets/president_sign_23.jpeg",
       // secretarySign: "/assets/secretary_sign.jpg",
       secretarySign: "/assets/gen_sec-removebg-preview_new.webp",
       since2016Img: "/assets/since2016new1.webp",
-      aitiflogo:"/assets/AITIF_new_logo.png",
+      aitiflogo: "/assets/AITIF_new_logo.png",
     });
   } catch (error) {
     console.error("Certificate Generation Error:", error);

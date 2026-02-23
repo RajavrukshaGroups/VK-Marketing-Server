@@ -11,128 +11,98 @@
         font-family: "Times New Roman", serif;
       }
 
+      /* ================= OUTER CERTIFICATE ================= */
       .certificate {
         width: 1000px;
-        height: 700px;
+        min-height: 700px; /* 🔥 changed from height to min-height */
         margin: 30px auto;
         background: #ffffff;
-        border: 12px solid #8b1a1a;
-        padding: 25px;
-        position: relative;
+        border: 18px solid #8b1a1a; /* thicker red border */
+        padding: 20px;
+        box-sizing: border-box;
       }
 
+      /* ================= INNER BORDER ================= */
       .inner-border {
-        border: 4px solid #c9a44c;
-        height: 100%;
-        padding: 30px;
+        border: 6px solid #c9a44c; /* thicker gold border */
+        padding: 60px 70px;
         box-sizing: border-box;
-        position: relative;
+
+        display: flex;
+        flex-direction: column;
       }
 
       /* ================= HEADER ================= */
       .header {
-        display: grid;
-        grid-template-columns: 1fr 2fr 1fr; /* center wider */
-        align-items: center;
-      }
-
-      .header-right {
-        display: flex;
-        flex-direction: column;
-        align-items: center; /* ⬅ locks text under logo */
-        margin-bottom: 3rem;
-      }
-
-      .header-left {
-        display: flex;
-        flex-direction: column;
-        align-items: center; /* ⬅ locks text under logo */
-      }
-
-      .header-center {
         text-align: center;
-      }
-
-      .sir-mv {
-        width: 110px;
       }
 
       .fkcci-logo {
-        width: 140px; /* increased from 95px */
-        max-width: 140px;
+        width: 170px;
+        margin-bottom: 12px;
       }
 
-      /* ===== Logo captions ===== */
-      .logo-caption {
-        margin-top: 6px;
-        font-size: 12px;
-        line-height: 1.3;
-        text-align: center;
-      }
-
-      /* ================= CENTER TEXT BELOW RIBBON ================= */
-      .center-text-block {
-        margin-top: 18px;
-        text-align: center;
-      }
-
-      .center-text-block .kannada {
+      .kannada {
         color: #b11212;
         font-weight: bold;
-        font-size: 18px;
-        white-space: nowrap; /* ⬅ prevents line break */
+        font-size: 24px;
+        margin-bottom: 6px;
       }
 
-      .center-text-block .english {
-        margin-top: 6px;
-        font-size: 22px;
+      .english {
+        font-size: 26px;
         font-weight: bold;
         color: #1e3a8a;
-        letter-spacing: 0.6px;
-        white-space: nowrap; /* ⬅ prevents line break */
+        letter-spacing: 1px;
       }
 
       /* ================= CONTENT ================= */
       .content {
-        margin-top: 45px;
-        font-size: 18px;
         text-align: center;
-        line-height: 2;
+        font-size: 20px;
+        line-height: 2.3;
+        margin-top: 60px;
       }
 
       .company {
-        font-size: 28px;
+        font-size: 34px;
         font-weight: bold;
         font-style: italic;
-        margin: 18px 0;
+        margin: 25px 0;
         text-transform: uppercase;
       }
 
-      /* ================= FOOTER ================= */
-      .footer {
-        position: absolute;
-        bottom: 50px;
-        left: 40px;
-        right: 40px;
+      /* ================= BOTTOM SECTION ================= */
+      .bottom-section {
+        margin-top: auto; /* pushes signatures to bottom */
+      }
+
+      .signatures {
+        margin-top: 60px;
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-end;
       }
 
       .sign {
         text-align: center;
+        width: 250px;
       }
 
       .sign img {
-        width: 130px;
-        margin-bottom: 6px;
+        width: 120px;
+        margin-bottom: 10px;
       }
 
+      .sign strong {
+        font-size: 18px;
+      }
+
+      /* ================= DATE ================= */
       .date {
-        position: absolute;
-        bottom: 15px;
-        right: 50px;
-        font-size: 14px;
+        text-align: right;
+        font-size: 16px;
+        margin-top: 30px;
       }
     </style>
   </head>
@@ -142,63 +112,43 @@
       <div class="inner-border">
         <!-- HEADER -->
         <div class="header">
-          <!-- LEFT -->
-          <div class="header-left">
-            <img src="<%= sirMVLogo %>" class="sir-mv" />
-            <div class="logo-caption">
-              Bharat Ratna<br />
-              The Founder<br />
-              Sir M. Visvesvaraya
-            </div>
-          </div>
+          <img src="<%= aitiflogo %>" class="fkcci-logo" />
 
-          <!-- CENTER -->
-          <div class="header-center">
-            <!-- <img src="<%= since2016Img %>" class="since-img" /> -->
-            <div class="center-text-block">
-              <!-- <div class="kannada">ಕರ್ನಾಟಕ ವಾಣಿಜ್ಯ ಮತ್ತು ಕೈಗಾರಿಕಾ ಮಹಾಸಂಘ</div> -->
-              <div class="kannada">ಅಖಿಲ ಭಾರತ ವ್ಯಾಪಾರ ಮತ್ತು ಕೈಗಾರಿಕಾ ವೇದಿಕೆ</div>
-              <div class="english">
-                <!-- FEDERATION OF KARNATAKA CHAMBERS OF COMMERCE & INDUSTRY (FKCCI) -->
-                ALL INDIA TRADE AND INDUSTRIES FORUM
-              </div>
-            </div>
-          </div>
+          <div class="kannada">ಅಖಿಲ ಭಾರತ ವ್ಯಾಪಾರ ಮತ್ತು ಕೈಗಾರಿಕಾ ವೇದಿಕೆ</div>
 
-          <!-- RIGHT -->
-          <div class="header-right">
-            <!-- <img src="<%= fkcciLogo %>" class="fkcci-logo" /> -->
-            <img src="<%=aitiflogo %>" class="fkcci-logo" />
-            <!-- <div class="logo-caption">Estd. 1916</div> -->
-          </div>
+          <div class="english">ALL INDIA TRADE AND INDUSTRIES FORUM</div>
         </div>
 
         <!-- CONTENT -->
         <div class="content">
           This is to certify that
+
           <div class="company"><%= companyName %></div>
+
           has been enrolled to
           <strong><%= membershipType %></strong>
           and are entitled to all the privileges of membership as set forth in
           the Bylaws of the All India Trade and Industries Forum.
         </div>
 
-        <!-- FOOTER -->
-        <div class="footer">
-          <div class="sign">
-            <img src="<%= presidentSign %>" />
-            <div><strong>C. VENKATESH </strong></div>
-            <div>President</div>
+        <!-- SIGNATURES + DATE -->
+        <div class="bottom-section">
+          <div class="signatures">
+            <div class="sign">
+              <img src="<%= presidentSign %>" />
+              <div><strong>C. VENKATESH</strong></div>
+              <div>President</div>
+            </div>
+
+            <div class="sign">
+              <img src="<%= secretarySign %>" />
+              <div><strong>SATHYA PRAVEEN</strong></div>
+              <div>General Secretary</div>
+            </div>
           </div>
 
-          <div class="sign">
-            <img src="<%= secretarySign %>" />
-            <div><strong>SATHYA PRAVEEN</strong></div>
-            <div>Secretary General</div>
-          </div>
+          <div class="date">Issued on: <%= issuedDate %></div>
         </div>
-
-        <div class="date">Issued on: <%= issuedDate %></div>
       </div>
     </div>
   </body>
