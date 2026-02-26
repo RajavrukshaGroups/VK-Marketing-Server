@@ -957,6 +957,7 @@ const viewIndPaymentRecord = async (req, res) => {
       amount: payment.amount,
       paidAt: payment.paidAt,
       createdAt: payment.createdAt,
+      registrationSnapshot:payment.registrationSnapshot || null,
 
       /* =========================
          USER / COMPANY

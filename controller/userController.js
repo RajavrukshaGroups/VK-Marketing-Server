@@ -34,6 +34,7 @@ const createUser = async (req, res) => {
       paymentSource,
       transactionId,
       amount,
+      paymentId,
     } = req.body;
 
     /* =========================
@@ -166,15 +167,64 @@ const createUser = async (req, res) => {
     /* =========================
        CREATE PAYMENT (ADMIN FLOW)
     ========================= */
-    const payment = await Payment.create({
-      membershipPlan: plan._id,
-      amount,
-      paymentSource: paymentSource || "ADMIN",
-      transactionId: transactionId || null,
-      registrationSnapshot,
-      status: "SUCCESS",
-      paidAt: new Date(),
-    });
+
+    let payment;
+
+    if (paymentId) {
+      /* =========================
+     EXISTING PAYMENT FLOW
+  ========================= */
+
+      payment = await Payment.findById(paymentId);
+
+      if (!payment) {
+        return res.status(404).json({
+          success: false,
+          message: "Original payment not found",
+        });
+      }
+
+      if (payment.status !== "CREATED") {
+        return res.status(400).json({
+          success: false,
+          message: "Payment already processed",
+        });
+      }
+
+      payment.status = "SUCCESS";
+      payment.paidAt = new Date();
+      payment.membershipPlan = plan._id;
+      payment.amount = amount;
+      payment.paymentSource = paymentSource || payment.paymentSource;
+      payment.transactionId = transactionId || payment.transactionId;
+      payment.registrationSnapshot = registrationSnapshot;
+
+      await payment.save();
+    } else {
+      /* =========================
+     NORMAL ADMIN FLOW
+  ========================= */
+
+      payment = await Payment.create({
+        membershipPlan: plan._id,
+        amount,
+        paymentSource: paymentSource || "ADMIN",
+        transactionId: transactionId || null,
+        registrationSnapshot,
+        status: "SUCCESS",
+        paidAt: new Date(),
+      });
+    } 
+    
+    // const payment = await Payment.create({
+    //   membershipPlan: plan._id,
+    //   amount,
+    //   paymentSource: paymentSource || "ADMIN",
+    //   transactionId: transactionId || null,
+    //   registrationSnapshot,
+    //   status: "SUCCESS",
+    //   paidAt: new Date(),
+    // });
 
     /* =========================
        CREATE USER (EXACT LIKE WEBHOOK)
@@ -331,7 +381,7 @@ const fetchAllUsers = async (req, res) => {
         .populate("membership.plan", "name amount")
         .populate(
           "referral.referredByUser",
-          "userId companyName mobileNumber email"
+          "userId companyName mobileNumber email",
         )
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -376,7 +426,7 @@ const fetchUserFilters = async (req, res) => {
         businessNature: 1,
         address: 1,
         "membership.plan": 1,
-      }
+      },
     )
       .populate("businessCategory", "name")
       .populate("membership.plan", "name")
@@ -394,7 +444,7 @@ const fetchUserFilters = async (req, res) => {
       if (u.businessCategory)
         categories.set(
           u.businessCategory._id.toString(),
-          u.businessCategory.name
+          u.businessCategory.name,
         );
 
       if (u.address?.state) states.add(u.address.state);
@@ -405,7 +455,7 @@ const fetchUserFilters = async (req, res) => {
         plans.set(u.membership.plan._id.toString(), u.membership.plan.name);
 
       u.businessNature?.manufacturer?.scale?.forEach((s) =>
-        manufacturerScales.add(s)
+        manufacturerScales.add(s),
       );
       u.businessNature?.trader?.type?.forEach((t) => traderTypes.add(t));
     });
@@ -717,7 +767,7 @@ const editUsersDetails = async (req, res) => {
       await Payment.findOneAndUpdate(
         { user: user._id, status: "SUCCESS" },
         { membershipPlan: plan._id, amount: plan.amount },
-        { sort: { createdAt: -1 } }
+        { sort: { createdAt: -1 } },
       );
     }
 
