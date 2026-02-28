@@ -10,6 +10,7 @@ const membershipPlansRoutes = require("./routes/membershipPlansRoutes.js");
 const paymentRoutes = require("./routes/paymentRoutes.js");
 const notificationRoutes = require("./routes/notificationRoutes.js");
 const dashBoardRoutes = require("./routes/dashboardRoutes.js");
+const googleSheetRoutes = require("./routes/googleSheetRoutes/sheetRoutes.js");
 
 //memberpanel routes
 const memberAuthRoutes = require("./routes/MemberPanelRoutes/meberPanelLoginRoutes.js");
@@ -40,7 +41,7 @@ app.use(
   cors({
     origin: [
       // "https://admin-panel.rajavrukshagroup.in",
-      // "http://localhost:5173",
+      // "http://localhost:5174",
       // "http://localhost:3000",
       // "https://rrplserver.rajavrukshagroup.in",
       "https://aitif.in",
@@ -63,6 +64,7 @@ app.use("/admin/businessplans", membershipPlansRoutes);
 app.use("/admin/payment", paymentRoutes);
 app.use("/admin/notification", notificationRoutes);
 app.use("/admin/dashboard", dashBoardRoutes);
+app.use("/admin/googlesheet", googleSheetRoutes);
 
 //memberpanel routes
 app.use("/member/auth", memberAuthRoutes);

@@ -957,7 +957,7 @@ const viewIndPaymentRecord = async (req, res) => {
       amount: payment.amount,
       paidAt: payment.paidAt,
       createdAt: payment.createdAt,
-      registrationSnapshot:payment.registrationSnapshot || null,
+      registrationSnapshot: payment.registrationSnapshot || null,
 
       /* =========================
          USER / COMPANY
@@ -1097,6 +1097,83 @@ const getUserReferralDetails = async (req, res) => {
   }
 };
 
+const deleteIndPaymentRecords = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+
+    /* =========================
+       VALIDATE OBJECT ID
+    ========================= */
+    if (!mongoose.Types.ObjectId.isValid(paymentId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment ID",
+      });
+    }
+
+    /* =========================
+       FIND PAYMENT
+    ========================= */
+    const payment = await Payment.findById(paymentId);
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment record not found",
+      });
+    }
+
+    /* =========================
+       PROTECT SUCCESS PAYMENTS
+    ========================= */
+    if (payment.status === "SUCCESS") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot cancel successful payments",
+      });
+    }
+
+    /* =========================
+       PROTECT ALREADY CANCELLED
+    ========================= */
+    if (payment.status === "CANCELLED") {
+      return res.status(400).json({
+        success: false,
+        message: "Payment already cancelled",
+      });
+    }
+
+    /* =========================
+       OPTIONAL: PROTECT LINKED USERS
+    ========================= */
+    const linkedUser = await User.findOne({ payment: paymentId });
+
+    if (linkedUser) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot cancel payment linked to a user",
+      });
+    }
+
+    /* =========================
+       UPDATE STATUS TO CANCELLED
+    ========================= */
+    payment.status = "CANCELLED";
+    await payment.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment cancelled successfully",
+    });
+  } catch (err) {
+    console.error("Cancel payment error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while cancelling payment",
+    });
+  }
+};
+
 module.exports = {
   getUserReferralDetails,
 };
@@ -1109,4 +1186,5 @@ module.exports = {
   viewIndPaymentRecord,
   // fetchPaymentFilters,
   getUserReferralDetails,
+  deleteIndPaymentRecords,
 };

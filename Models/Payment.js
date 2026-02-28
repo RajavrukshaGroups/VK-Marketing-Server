@@ -41,13 +41,13 @@ const PaymentSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["CREATED", "SUCCESS", "FAILED"],
+      enum: ["CREATED", "SUCCESS", "FAILED", "CANCELLED"],
       default: "CREATED",
     },
 
     paidAt: Date,
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Payment", PaymentSchema);

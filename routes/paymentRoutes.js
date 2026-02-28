@@ -23,9 +23,10 @@ router.put(
   PaymentController.editPaymentRecord,
 );
 router.get("/admin/view-payment/:id", PaymentController.viewIndPaymentRecord);
-router.get(
-  "/referrals/:userId",
-  PaymentController.getUserReferralDetails,
+router.get("/referrals/:userId", PaymentController.getUserReferralDetails);
+router.put(
+  "/delete-payment-records/:paymentId",
+  PaymentController.deleteIndPaymentRecords,
 );
 // router.get("/filters", PaymentController.fetchPaymentFilters);
 
