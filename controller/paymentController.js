@@ -78,14 +78,22 @@ const createOrder = async (req, res) => {
     /* =========================
        BUSINESS NATURE VALIDATION
     ========================= */
+    // if (
+    //   !businessNature ||
+    //   (!businessNature.manufacturer?.isManufacturer &&
+    //     !businessNature.trader?.isTrader)
+    // )
     if (
       !businessNature ||
       (!businessNature.manufacturer?.isManufacturer &&
-        !businessNature.trader?.isTrader)
+        !businessNature.trader?.isTrader &&
+        !businessNature.professional?.isProfessional &&
+        !businessNature.other?.isOther)
     ) {
       return res.status(400).json({
         success: false,
-        message: "Select Manufacturer and/or Trader",
+        // message: "Select Manufacturer and/or Trader",
+        message: "Select at least any one business nature",
       });
     }
 
@@ -169,8 +177,21 @@ const createOrder = async (req, res) => {
       });
     }
 
+    const isManufacturer = businessNature?.manufacturer?.isManufacturer;
+    const isTrader = businessNature?.trader?.isTrader;
+
+    // ✅ GST REQUIRED for Manufacturer / Trader
+    if ((isManufacturer || isTrader) && !gstNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "GST is required for Manufacturer / Trader",
+      });
+    }
+
+    // ✅ Validate GST if provided
     if (gstNumber) {
       const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+
       if (!gstRegex.test(gstNumber)) {
         return res.status(400).json({
           success: false,
@@ -310,12 +331,35 @@ const razorpayWebhook = async (req, res) => {
     const snapshot = payment.registrationSnapshot;
     const plan = await MembershipPlan.findById(payment.membershipPlan);
 
-    if (
-      !snapshot?.businessNature ||
-      (!snapshot.businessNature.manufacturer?.isManufacturer &&
-        !snapshot.businessNature.trader?.isTrader)
-    ) {
-      return res.status(400).json({ received: false });
+    // if (
+    //   !snapshot?.businessNature ||
+    //   (!snapshot.businessNature.manufacturer?.isManufacturer &&
+    //     !snapshot.businessNature.trader?.isTrader)
+    // ) {
+    //   return res.status(400).json({ received: false });
+    // }
+    // if (
+    //   !snapshot?.businessNature ||
+    //   (!snapshot.businessNature.manufacturer?.isManufacturer &&
+    //     !snapshot.businessNature.trader?.isTrader &&
+    //     !snapshot.businessNature.professional?.isProfessional &&
+    //     !snapshot.businessNature.other?.isOther)
+    // ) {
+    //   return res.status(400).json({ received: false });
+    // }
+    const nature = snapshot?.businessNature;
+
+    const isValidNature =
+      nature?.manufacturer?.isManufacturer ||
+      nature?.trader?.isTrader ||
+      nature?.professional?.isProfessional ||
+      nature?.other?.isOther;
+
+    if (!isValidNature) {
+      console.error("Invalid business nature in webhook:", nature);
+
+      // ❗ IMPORTANT: Don't fail webhook
+      return res.json({ received: true });
     }
 
     /* =========================
@@ -332,7 +376,11 @@ const razorpayWebhook = async (req, res) => {
     if (referredByUserId) {
       const refUser = await User.findOne({ userId: referredByUserId });
 
-      if (!refUser) return res.json({ received: false });
+      // if (!refUser) return res.json({ received: false });
+      if (!refUser) {
+        console.error("Invalid referral user");
+        return res.json({ received: true });
+      }
 
       const referralCount = await User.countDocuments({
         "referral.referredByUser": refUser._id,
@@ -352,6 +400,10 @@ const razorpayWebhook = async (req, res) => {
     /* =========================
        CREATE USER
     ========================= */
+    if (!snapshot) {
+      console.error("Missing registration snapshot");
+      return res.json({ received: true });
+    }
     const userId = await generateUserId();
     const plainPassword = generatePassword();
 
@@ -397,8 +449,12 @@ const razorpayWebhook = async (req, res) => {
 
     return res.json({ received: true });
   } catch (err) {
+    // catch (err) {
+    //   console.error("Webhook Error:", err);
+    //   return res.status(500).json({ received: false });
+    // }
     console.error("Webhook Error:", err);
-    return res.status(500).json({ received: false });
+    return res.json({ received: true }); // ✅ IMPORTANT
   }
 };
 

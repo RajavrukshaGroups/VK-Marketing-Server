@@ -83,6 +83,12 @@ const UsersSchema = new mongoose.Schema(
           default: [],
         },
       },
+      professional: {
+        isProfessional: { type: Boolean, default: false },
+      },
+      other: {
+        isOther: { type: Boolean, default: false },
+      },
     },
 
     /* 🔥 Referral System */
@@ -127,12 +133,25 @@ const UsersSchema = new mongoose.Schema(
       default: [],
     },
 
+    // gstNumber: {
+    //   type: String,
+    //   trim: true,
+    //   uppercase: true,
+    //   minlength: 15,
+    //   maxlength: 15,
+    // },
     gstNumber: {
       type: String,
       trim: true,
       uppercase: true,
-      minlength: 15,
-      maxlength: 15,
+      validate: {
+        validator: function (value) {
+          if (!value) return true;
+
+          return /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(value);
+        },
+        message: "Invalid GST format",
+      },
     },
 
     /* =========================
@@ -165,7 +184,7 @@ const UsersSchema = new mongoose.Schema(
 
     isActive: { type: Boolean, default: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Users", UsersSchema);

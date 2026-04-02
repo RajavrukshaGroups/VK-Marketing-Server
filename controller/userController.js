@@ -65,14 +65,38 @@ const createUser = async (req, res) => {
     /* =========================
        BUSINESS NATURE VALIDATION
     ========================= */
-    if (
-      !businessNature ||
-      (!businessNature.manufacturer?.isManufacturer &&
-        !businessNature.trader?.isTrader)
-    ) {
+    // if (
+    //   !businessNature ||
+    //   (!businessNature.manufacturer?.isManufacturer &&
+    //     !businessNature.trader?.isTrader)
+    // ) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Please select Manufacturer and/or Trader",
+    //   });
+    // }
+
+    const isValidNature =
+      businessNature?.manufacturer?.isManufacturer ||
+      businessNature?.trader?.isTrader ||
+      businessNature?.professional?.isProfessional ||
+      businessNature?.other?.isOther;
+
+    if (!isValidNature) {
       return res.status(400).json({
         success: false,
-        message: "Please select Manufacturer and/or Trader",
+        message:
+          "Please select at least one: Manufacturer, Trader, Professional, or Other",
+      });
+    }
+
+    const isManufacturer = businessNature?.manufacturer?.isManufacturer;
+    const isTrader = businessNature?.trader?.isTrader;
+
+    if ((isManufacturer || isTrader) && !gstNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "GST number is required for Manufacturer or Trader",
       });
     }
 
@@ -214,8 +238,8 @@ const createUser = async (req, res) => {
         status: "SUCCESS",
         paidAt: new Date(),
       });
-    } 
-    
+    }
+
     // const payment = await Payment.create({
     //   membershipPlan: plan._id,
     //   amount,
@@ -316,6 +340,8 @@ const fetchAllUsers = async (req, res) => {
     const manufacturerScale =
       req.query.manufacturerScale || req.query["manufacturerScale[]"];
     const traderType = req.query.traderType || req.query["traderType[]"];
+    const professional = req.query.professional;
+    const other = req.query.other;
 
     const skip = (page - 1) * limit;
     const query = {};
@@ -372,6 +398,14 @@ const fetchAllUsers = async (req, res) => {
       query["businessNature.trader.type"] = {
         $in: [].concat(traderType),
       };
+    }
+
+    if (professional === "true") {
+      query["businessNature.professional.isProfessional"] = true;
+    }
+
+    if (other === "true") {
+      query["businessNature.other.isOther"] = true;
     }
 
     /* ================= FETCH ================= */
@@ -440,23 +474,51 @@ const fetchUserFilters = async (req, res) => {
     const manufacturerScales = new Set();
     const traderTypes = new Set();
 
+    // 🔥 ONE CLEAN SET FOR ALL TYPES
+    const businessNatureTypes = new Set();
+
     users.forEach((u) => {
-      if (u.businessCategory)
+      // ✅ Category
+      if (u.businessCategory) {
         categories.set(
           u.businessCategory._id.toString(),
           u.businessCategory.name,
         );
+      }
 
+      // ✅ Address
       if (u.address?.state) states.add(u.address.state);
       if (u.address?.district) districts.add(u.address.district);
       if (u.address?.taluk) taluks.add(u.address.taluk);
 
-      if (u.membership?.plan)
+      // ✅ Membership Plan
+      if (u.membership?.plan) {
         plans.set(u.membership.plan._id.toString(), u.membership.plan.name);
+      }
 
+      // 🔥 BUSINESS NATURE TYPES (ALL 4)
+      if (u.businessNature?.manufacturer?.isManufacturer) {
+        businessNatureTypes.add("MANUFACTURER");
+      }
+
+      if (u.businessNature?.trader?.isTrader) {
+        businessNatureTypes.add("TRADER");
+      }
+
+      if (u.businessNature?.professional?.isProfessional) {
+        businessNatureTypes.add("PROFESSIONAL");
+      }
+
+      if (u.businessNature?.other?.isOther) {
+        businessNatureTypes.add("OTHER");
+      }
+
+      // ✅ Manufacturer Scale
       u.businessNature?.manufacturer?.scale?.forEach((s) =>
         manufacturerScales.add(s),
       );
+
+      // ✅ Trader Type
       u.businessNature?.trader?.type?.forEach((t) => traderTypes.add(t));
     });
 
@@ -470,17 +532,23 @@ const fetchUserFilters = async (req, res) => {
         states: [...states].sort(),
         districts: [...districts].sort(),
         taluks: [...taluks].sort(),
-        membershipPlans: [...plans].map(([id, name]) => ({ _id: id, name })),
+        membershipPlans: [...plans].map(([id, name]) => ({
+          _id: id,
+          name,
+        })),
         manufacturerScales: [...manufacturerScales].sort(),
         traderTypes: [...traderTypes].sort(),
-        // Remove businessTypes since it's now handled by businessNature
+
+        // 🔥 FINAL BUSINESS NATURE FILTER
+        businessNatureTypes: [...businessNatureTypes],
       },
     });
   } catch (err) {
     console.error("Fetch User Filters Error:", err);
-    return res
-      .status(500)
-      .json({ success: false, message: "Failed to fetch filters" });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch filters",
+    });
   }
 };
 // GET /users/referral/:userId
@@ -659,14 +727,27 @@ const editUsersDetails = async (req, res) => {
       });
     }
 
+    // if (businessNature) {
+    //   if (
+    //     !businessNature.manufacturer?.isManufacturer &&
+    //     !businessNature.trader?.isTrader
+    //   ) {
+    //     return res.status(400).json({
+    //       success: false,
+    //       message: "Select Manufacturer and/or Trader",
+    //     });
+    //   }
     if (businessNature) {
-      if (
-        !businessNature.manufacturer?.isManufacturer &&
-        !businessNature.trader?.isTrader
-      ) {
+      const isValidNature =
+        businessNature.manufacturer?.isManufacturer ||
+        businessNature.trader?.isTrader ||
+        businessNature.professional?.isProfessional ||
+        businessNature.other?.isOther;
+
+      if (!isValidNature) {
         return res.status(400).json({
           success: false,
-          message: "Select Manufacturer and/or Trader",
+          message: "Select at least one business nature",
         });
       }
 
@@ -691,8 +772,21 @@ const editUsersDetails = async (req, res) => {
       }
     }
 
+    const isManufacturer = businessNature?.manufacturer?.isManufacturer;
+    const isTrader = businessNature?.trader?.isTrader;
+
+    // GST required only for Manufacturer / Trader
+    if ((isManufacturer || isTrader) && !gstNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "GST number is required for Manufacturer or Trader",
+      });
+    }
+
+    // Validate GST only if present
     if (gstNumber) {
       const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+
       if (!gstRegex.test(gstNumber)) {
         return res.status(400).json({
           success: false,
@@ -704,25 +798,30 @@ const editUsersDetails = async (req, res) => {
     if (bankDetails) {
       const { bankName, accountNumber, ifscCode } = bankDetails;
 
-      if (!bankName || !accountNumber || !ifscCode) {
-        return res.status(400).json({
-          success: false,
-          message: "Complete bank details are required",
-        });
-      }
+      const isAnyFieldFilled = bankName || accountNumber || ifscCode;
 
-      if (accountNumber.length < 9) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid account number",
-        });
-      }
+      // ✅ Only validate if user started filling
+      if (isAnyFieldFilled) {
+        if (!bankName || !accountNumber || !ifscCode) {
+          return res.status(400).json({
+            success: false,
+            message: "Please fill all bank details or leave all empty",
+          });
+        }
 
-      if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid IFSC code format",
-        });
+        if (accountNumber.length < 9) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid account number",
+          });
+        }
+
+        if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid IFSC code format",
+          });
+        }
       }
     }
 
