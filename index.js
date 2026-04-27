@@ -18,19 +18,25 @@ const memberAuthRoutes = require("./routes/MemberPanelRoutes/meberPanelLoginRout
 const app = express();
 const port = process.env.PORT;
 
-// Middleware
-// app.use(express.json());
+/* =========================
+   🔥 RAW BODY FOR WEBHOOKS
+========================= */
+app.use("/admin/payment/razorpay-webhook", express.raw({ type: "*/*" }));
+app.use("/admin/payment/mayday/webhook", express.raw({ type: "*/*" }));
 
-app.use((req, res, next) => {
-  if (req.originalUrl === "/admin/payment/razorpay-webhook") {
-    next();
-  } else {
-    express.json()(req, res, next);
-  }
-});
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// app.use((req, res, next) => {
+//   if (req.originalUrl === "/admin/payment/razorpay-webhook") {
+//     next();
+//   } else {
+//     express.json()(req, res, next);
+//   }
+// });
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
-app.use(express.urlencoded({ extended: true }));
 
 // Serve static files
 app.use(express.static(path.join(__dirname, "public")));
@@ -41,7 +47,7 @@ app.use(
   cors({
     origin: [
       // "https://admin-panel.rajavrukshagroup.in",
-      "http://localhost:5173",
+      "http://localhost:5174",
       "http://localhost:3000",
       // "https://rrplserver.rajavrukshagroup.in",
       "https://aitif.in",
