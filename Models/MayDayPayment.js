@@ -24,6 +24,11 @@ const mayDayPaymentSchema = new mongoose.Schema(
       paymentId: String,
     },
 
+    uniqueId: {
+      type: String,
+      unique: true,
+    },
+
     status: {
       type: String,
       enum: ["CREATED", "SUCCESS", "FAILED"],

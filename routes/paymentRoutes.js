@@ -34,4 +34,5 @@ router.put(
 router.post("/mayday/create-order", MayDayController.createMayDayOrder);
 router.post("/mayday/webhook", MayDayController.maydayWebhook);
 router.get("/mayday/list", MayDayController.getMayDayPayments);
+router.get("/mayday/order/:orderId", MayDayController.getMayDayByOrderId);
 module.exports = router;

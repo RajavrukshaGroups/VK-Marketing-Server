@@ -2,6 +2,20 @@ const razorpay = require("../config/razorpay");
 const MayDayPayment = require("../Models/MayDayPayment");
 const crypto = require("crypto");
 
+const generateUniqueId = async () => {
+  let unique;
+  let exists = true;
+
+  while (exists) {
+    unique = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const existing = await MayDayPayment.findOne({ uniqueId: unique });
+    if (!existing) exists = false;
+  }
+
+  return unique;
+};
+
 const createMayDayOrder = async (req, res) => {
   try {
     const { formData } = req.body;
@@ -10,6 +24,20 @@ const createMayDayOrder = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Invalid data",
+      });
+    }
+
+    // 🔴 CHECK DUPLICATE MOBILE NUMBER
+    const existingUser = await MayDayPayment.findOne({
+      mobileNumber: formData.mobileNumber,
+      status: "SUCCESS",
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: "You are already registered.",
+        uniqueId: existingUser.uniqueId,
       });
     }
 
@@ -94,6 +122,8 @@ const maydayWebhook = async (req, res) => {
     payment.razorpay.paymentId = paymentEntity.id;
     payment.paidAt = new Date();
 
+    // ✅ Generate unique ID only on success
+    payment.uniqueId = await generateUniqueId();
     await payment.save();
 
     return res.json({ received: true });
@@ -149,8 +179,37 @@ const getMayDayPayments = async (req, res) => {
   }
 };
 
+const getMayDayByOrderId = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    console.log("order id", orderId);
+
+    const payment = await MayDayPayment.findOne({
+      "razorpay.orderId": orderId,
+    });
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: payment,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: "Error fetching payment",
+    });
+  }
+};
+
 module.exports = {
   createMayDayOrder,
   maydayWebhook,
   getMayDayPayments,
+  getMayDayByOrderId,
 };
