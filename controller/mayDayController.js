@@ -20,17 +20,20 @@ const createMayDayOrder = async (req, res) => {
   try {
     const { formData } = req.body;
 
-    if (!formData || !formData.selectedPlans?.length) {
+    if (!formData) {
       return res.status(400).json({
         success: false,
         message: "Invalid data",
       });
     }
 
-    // 🔴 CHECK DUPLICATE MOBILE NUMBER
+    const isLuckyDraw = formData.isLuckyDraw || false;
+
+    /* =========================
+       🔴 BLOCK ANY EXISTING USER
+    ========================= */
     const existingUser = await MayDayPayment.findOne({
       mobileNumber: formData.mobileNumber,
-      status: "SUCCESS",
     });
 
     if (existingUser) {
@@ -41,20 +44,49 @@ const createMayDayOrder = async (req, res) => {
       });
     }
 
-    // ✅ Secure amount calculation
+    /* =========================
+       🎁 LUCKY DRAW (FREE)
+    ========================= */
+    if (isLuckyDraw) {
+      const uniqueId = await generateUniqueId();
+
+      await MayDayPayment.create({
+        companyName: formData.companyName,
+        proprietors: formData.proprietors,
+        mobileNumber: formData.mobileNumber,
+        businessCategory: formData.businessCategory,
+        formData,
+        amount: 0,
+        isLuckyDraw: true,
+        status: "SUCCESS",
+        uniqueId,
+        paidAt: new Date(),
+      });
+
+      return res.json({
+        success: true,
+        isLuckyDraw: true,
+        uniqueId,
+        message: "Lucky draw registered successfully",
+      });
+    }
+
+    /* =========================
+       💰 PROMO KIT PAYMENT
+    ========================= */
+    if (!formData.selectedPlans?.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Select at least one plan",
+      });
+    }
+
     const cleanPlans = formData.selectedPlans.map((p) => ({
       name: p.name,
       amount: Number(p.amount),
     }));
 
     const amount = cleanPlans.reduce((sum, p) => sum + p.amount, 0);
-
-    if (amount <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid amount",
-      });
-    }
 
     const order = await razorpay.orders.create({
       amount: amount * 100,

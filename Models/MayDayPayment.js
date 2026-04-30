@@ -23,6 +23,10 @@ const mayDayPaymentSchema = new mongoose.Schema(
       orderId: String,
       paymentId: String,
     },
+    isLuckyDraw: {
+      type: Boolean,
+      default: false,
+    },
 
     uniqueId: {
       type: String,
