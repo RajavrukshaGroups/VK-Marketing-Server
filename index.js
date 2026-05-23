@@ -47,8 +47,8 @@ app.use(
   cors({
     origin: [
       // "https://admin-panel.rajavrukshagroup.in",
-      "http://localhost:5173",
-      "http://localhost:3000",
+      "http://localhost:5174",
+      "http://localhost:3001",
       // "https://rrplserver.rajavrukshagroup.in",
       "https://aitif.in",
       // "https://test.aitif.in",

@@ -99,9 +99,19 @@
         align-items: flex-end;
       }
 
+      /* .sign {
+        text-align: center;
+        width: 150px;
+      } */
       .sign {
         text-align: center;
-        width: 150px; /* reduced */
+        width: 170px;
+      }
+
+      .sign-name {
+        font-size: 15px;
+        font-weight: bold;
+        white-space: nowrap;
       }
 
       .sign img {
@@ -141,9 +151,14 @@
         <div class="bottom-section">
           <div class="footer-row">
             <!-- LEFT TEXT -->
-            <div class="issued-text">
+            <!-- <div class="issued-text">
               In testimony thereof we have hereunto set our hands and affixed
               the seal of the Forum on this day
+              <strong><%= issuedDate %></strong>.
+            </div> -->
+            <div class="issued-text">
+              In testimony thereof we have hereunto set our hands <br />
+              and affixed the seal of the Forum on this day <br />
               <strong><%= issuedDate %></strong>.
             </div>
 
@@ -151,13 +166,25 @@
             <div class="signatures">
               <div class="sign">
                 <img src="<%= presidentSign %>" />
-                <div><strong>C. VENKATESH</strong></div>
+                <!-- <div><strong>C. VENKATESH</strong></div> -->
+                <div class="sign-name">C. VENKATESH</div>
                 <div>President</div>
               </div>
 
-              <div class="sign">
+              <!-- <div class="sign">
                 <img src="<%= secretarySign %>" />
                 <div><strong>SATHYA PRAVEEN</strong></div>
+                <div>General Secretary</div>
+              </div> -->
+              <div class="sign">
+                <img src="<%= seniorVPSign %>" />
+                <!-- <div><strong>J P MODI</strong></div> -->
+                <div class="sign-name">J P MODI</div>
+                <div>Senior Vice President</div>
+              </div>
+              <div class="sign">
+                <img src="<%= genSecNew %>" />
+                <div class="sign-name">SUKHVINDER SINGH</div>
                 <div>General Secretary</div>
               </div>
             </div>

@@ -354,6 +354,8 @@ const getCertificateOnPayment = async (req, res) => {
       // memberSign: "/assets/MEMBER_SIGN.jpeg",
       // presidentSign: "/assets/president_sign_new-removebg-preview_new.webp",
       presidentSign: "/assets/president_sign_23-removebg-preview.png",
+      seniorVPSign: "/assets/sen_vice_prez_modi.png",
+      genSecNew: "/assets/gen_sec_singh.png",
       // presidentSign: "/assets/president_sign_23.jpeg",
       // secretarySign: "/assets/secretary_sign.jpg",
       secretarySign: "/assets/gen_sec-removebg-preview_new.webp",
