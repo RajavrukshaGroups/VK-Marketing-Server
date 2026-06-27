@@ -341,9 +341,31 @@ const getCertificateOnPayment = async (req, res) => {
     console.log("user details", user);
 
     // 6️⃣ Render Certificate
-    res.render("certificates/membershipCertificate", {
+    // res.render("certificates/membershipCertificate", {
+    //   // Dynamic data
+    //   companyName: user.companyName,
+    //   membershipType:
+    //     user.membership.plan?.name?.toUpperCase() || "ORDINARY MEMBER",
+    //   issuedDate,
+
+    //   // Static Assets
+    //   fkcciLogo: "/assets/FKCCI_IMAGE.png",
+    //   sirMVLogo: "/assets/sirmv.jpg",
+    //   // memberSign: "/assets/MEMBER_SIGN.jpeg",
+    //   // presidentSign: "/assets/president_sign_new-removebg-preview_new.webp",
+    //   presidentSign: "/assets/president_sign_23-removebg-preview.png",
+    //   seniorVPSign: "/assets/sen_vice_prez_modi.png",
+    //   genSecNew: "/assets/gen_sec_singh.png",
+    //   // presidentSign: "/assets/president_sign_23.jpeg",
+    //   // secretarySign: "/assets/secretary_sign.jpg",
+    //   secretarySign: "/assets/gen_sec-removebg-preview_new.webp",
+    //   since2016Img: "/assets/since2016new1.webp",
+    //   aitiflogo: "/assets/AITIF_new_logo.png",
+    // });
+    res.render("certificates/membershipCertificateNew", {
       // Dynamic data
       companyName: user.companyName,
+      proprietors: user.proprietors,
       membershipType:
         user.membership.plan?.name?.toUpperCase() || "ORDINARY MEMBER",
       issuedDate,

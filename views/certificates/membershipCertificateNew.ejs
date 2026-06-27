@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Membership Certificate</title>
+
+    <style>
+      body {
+        margin: 0;
+        background: #f2f2f2;
+        font-family: "Times New Roman", serif;
+      }
+
+      .certificate {
+        width: 1000px;
+        min-height: 650px;
+        margin: 15px auto; /* reduced */
+        background: #ffffff;
+        border: 18px solid #8b1a1a;
+        padding: 12px; /* reduced */
+        box-sizing: border-box;
+      }
+
+      .inner-border {
+        border: 6px solid #c9a44c;
+        padding: 35px 40px; /* reduced */
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ================= HEADER ================= */
+
+      .header {
+        text-align: center;
+      }
+
+      .fkcci-logo {
+        width: 150px; /* slightly reduced */
+        margin-bottom: 6px; /* reduced */
+      }
+
+      .kannada {
+        color: #b11212;
+        font-weight: bold;
+        font-size: 22px;
+        margin-bottom: 4px;
+      }
+
+      .english {
+        font-size: 24px;
+        font-weight: bold;
+        color: #1e3a8a;
+        letter-spacing: 0.5px;
+      }
+
+      /* ================= CONTENT ================= */
+
+      .content {
+        text-align: center;
+        font-size: 19px;
+        line-height: 1.8;
+        margin-top: 35px;
+      }
+      /* 
+      .company {
+        font-size: 32px;
+        font-weight: bold;
+        font-style: italic;
+        text-transform: uppercase;
+        margin: 15px 0 8px;
+        color: #1e3a8a;
+      } */
+
+      .company {
+        font-size: 32px;
+        font-weight: bold;
+        text-transform: uppercase;
+        color: #1e3a8a;
+      }
+
+      .proprietor {
+        font-size: 18px;
+        font-style: italic;
+        color: #555;
+        margin-bottom: 18px;
+      }
+
+      .membership-text {
+        font-size: 19px;
+        line-height: 1.8;
+      }
+
+      .membership-text strong {
+        color: #8b1a1a;
+      }
+      /* ================= FOOTER ================= */
+
+      .bottom-section {
+        margin-top: auto;
+      }
+
+      .footer-row {
+        margin-top: 45px; /* reduced */
+        display: flex;
+        align-items: flex-end;
+      }
+
+      /* LEFT TEXT */
+      .issued-text {
+        width: 55%;
+        font-size: 15px;
+        line-height: 1.5;
+      }
+
+      /* RIGHT SIGNATURES */
+      .signatures {
+        margin-left: auto;
+        margin-right: -35px; /* closer to border */
+        display: flex;
+        gap: 20px; /* reduced space between signatures */
+        align-items: flex-end;
+      }
+
+      /* .sign {
+        text-align: center;
+        width: 150px;
+      } */
+      .sign {
+        text-align: center;
+        width: 170px;
+      }
+
+      .sign-name {
+        font-size: 15px;
+        font-weight: bold;
+        white-space: nowrap;
+      }
+
+      .sign img {
+        width: 105px; /* reduced */
+        /* margin-bottom: 4px; */
+        margin-bottom: -4px;
+      }
+
+      .sign strong {
+        font-size: 15px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="certificate">
+      <div class="inner-border">
+        <!-- HEADER -->
+        <div class="header">
+          <img src="<%= aitiflogo %>" class="fkcci-logo" />
+          <!-- <div class="kannada">ಅಖಿಲ ಭಾರತ ವ್ಯಾಪಾರ ಮತ್ತು ಕೈಗಾರಿಕಾ ವೇದಿಕೆ</div> -->
+          <div class="english">ALL INDIA TRADE AND INDUSTRIES FORUM</div>
+        </div>
+
+        <!-- CONTENT -->
+        <!-- CONTENT -->
+        <div class="content">
+          <div>This is to certify that</div>
+
+          <div class="company"><%= companyName %></div>
+
+          <div class="proprietor">
+            (Proprietor / Partner:
+            <strong><%= proprietors %></strong>)
+          </div>
+
+          <div class="membership-text">
+            has been enrolled to
+            <strong><%= membershipType %></strong>
+            <br />
+            and is entitled to all the privileges of membership as set forth in
+            the Bylaws of the All India Trade and Industries Forum.
+          </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="bottom-section">
+          <div class="footer-row">
+            <!-- LEFT TEXT -->
+            <!-- <div class="issued-text">
+              In testimony thereof we have hereunto set our hands and affixed
+              the seal of the Forum on this day
+              <strong><%= issuedDate %></strong>.
+            </div> -->
+            <div class="issued-text">
+              In testimony thereof we have hereunto set our hands <br />
+              and affixed the seal of the Forum on this day <br />
+              <strong><%= issuedDate %></strong>.
+            </div>
+
+            <!-- SIGNATURES -->
+            <div class="signatures">
+              <div class="sign">
+                <img src="<%= presidentSign %>" />
+                <!-- <div><strong>C. VENKATESH</strong></div> -->
+                <div class="sign-name">C. VENKATESH</div>
+                <div>President</div>
+              </div>
+
+              <!-- <div class="sign">
+                <img src="<%= secretarySign %>" />
+                <div><strong>SATHYA PRAVEEN</strong></div>
+                <div>General Secretary</div>
+              </div> -->
+              <div class="sign">
+                <img src="<%= seniorVPSign %>" />
+                <!-- <div><strong>J P MODI</strong></div> -->
+                <div class="sign-name">J P MODI</div>
+                <div>Senior Vice President</div>
+              </div>
+              <div class="sign">
+                <img src="<%= genSecNew %>" />
+                <div class="sign-name">SUKHVINDER SINGH</div>
+                <div>General Secretary</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

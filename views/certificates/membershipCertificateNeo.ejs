@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Membership Certificate</title>
+
+    <style>
+      body {
+        margin: 0;
+        background: #f2f2f2;
+        font-family: "Times New Roman", serif;
+      }
+
+      .certificate {
+        width: 1000px;
+        min-height: 650px;
+        margin: 15px auto; /* reduced */
+        background: #ffffff;
+        border: 18px solid #8b1a1a;
+        padding: 12px; /* reduced */
+        box-sizing: border-box;
+      }
+
+      .inner-border {
+        border: 6px solid #c9a44c;
+        padding: 18px 28px 28px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ================= HEADER ================= */
+
+      /* .header {
+        text-align: center;
+      } */
+
+      /* .fkcci-logo {
+        width: 150px;
+        margin-bottom: 6px; 
+      } */
+
+      .kannada {
+        color: #b11212;
+        font-weight: bold;
+        font-size: 22px;
+        margin-bottom: 4px;
+      }
+
+      /* .english {
+        font-size: 24px;
+        font-weight: bold;
+        color: #1e3a8a;
+        letter-spacing: 0.5px;
+      } */
+
+      .header {
+        /* margin-bottom: 30px; */
+        margin-bottom: 12px;
+      }
+
+      .header-top {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        /* gap: 20px; */
+        gap: 12px;
+      }
+
+      /* .logo {
+        width: 90px;
+        flex-shrink: 0;
+      } */
+
+      .logo {
+        width: 110px;
+        flex-shrink: 0;
+      }
+
+      .title-section {
+        flex: 1;
+      }
+
+      .main-title {
+        font-size: 24px;
+        font-weight: bold;
+        color: #173a8a;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+        line-height: 1;
+      }
+
+      .sub-title {
+        font-size: 20px;
+
+        color: #8b1a1a;
+
+        font-weight: bold;
+
+        margin-top: 4px;
+      }
+
+      .tagline {
+        /* margin-top: 8px; */
+        margin-top: 2px;
+        font-size: 15px;
+        font-style: italic;
+        color: #b22222;
+        text-align: center;
+      }
+
+      .tagline span {
+        color: #d4a017;
+
+        margin: 0 12px;
+      }
+
+      .office-row {
+        display: flex;
+        align-items: center; /* Center vertically */
+        justify-content: space-between;
+        margin-top: 10px;
+        padding: 10px 0;
+        border-top: 2px solid #d4af37;
+        border-bottom: 2px solid #d4af37;
+      }
+
+      /* .office,
+      .contact {
+        flex: 1;
+        padding: 0 18px;
+      } */
+
+      .office,
+      .contact {
+        flex: 1;
+        padding: 0 14px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 95px;
+      }
+
+      .office {
+        border-right: 2px solid #d4af37;
+      }
+
+      .office:last-of-type {
+        border-right: 2px solid #d4af37;
+      }
+
+      .office-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #173a8a;
+        font-size: 13px;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+
+      .office-text {
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .contact {
+        font-size: 14px;
+        line-height: 1.8;
+      }
+
+      .header-divider {
+        height: 3px;
+        background: #c9a44c;
+        margin-top: 10px;
+        margin-bottom: 8px;
+      }
+
+      /* ================= LEADERSHIP ================= */
+      .leadership-strip {
+        display: flex;
+
+        align-items: center;
+
+        justify-content: space-between;
+        margin-top: 8px;
+
+        /* margin-top: 18px; */
+
+        padding: 0 10px;
+      }
+
+      .leader {
+        flex: 1;
+
+        text-align: center;
+      }
+
+      .leader-name {
+        color: #b22222;
+
+        /* font-size: 22px; */
+        font-size: 16px;
+
+        font-weight: bold;
+
+        text-transform: uppercase;
+      }
+
+      .leader-designation {
+        /* margin-top: 8px; */
+        margin-top: 2px;
+        /* font-size: 17px; */
+        font-size: 13px;
+        color: #333;
+      }
+
+      .leader-divider {
+        width: 2px;
+        height: 42px;
+        background: #d4af37;
+      }
+
+      .leadership-bottom {
+        display: flex;
+
+        align-items: center;
+
+        margin-top: 8px;
+      }
+
+      .line {
+        flex: 1;
+
+        height: 4px;
+
+        background: #173a8a;
+      }
+
+      .ornament {
+        margin: 0 20px;
+        color: #d4af37;
+        font-size: 28px;
+      }
+
+      .middle-logo {
+        width: 34px;
+        opacity: 0.9;
+      }
+
+      /* ================= CONTENT ================= */
+
+      .content {
+        text-align: center;
+        font-size: 19px;
+        line-height: 1.8;
+        margin-top: 35px;
+      }
+      /* 
+      .company {
+        font-size: 32px;
+        font-weight: bold;
+        font-style: italic;
+        text-transform: uppercase;
+        margin: 15px 0 8px;
+        color: #1e3a8a;
+      } */
+
+      .company {
+        font-size: 32px;
+        font-weight: bold;
+        text-transform: uppercase;
+        color: #1e3a8a;
+      }
+
+      .proprietor {
+        font-size: 18px;
+        font-style: italic;
+        color: #555;
+        margin-bottom: 18px;
+      }
+
+      .membership-text {
+        font-size: 19px;
+        line-height: 1.8;
+      }
+
+      .membership-text strong {
+        color: #8b1a1a;
+      }
+      /* ================= FOOTER ================= */
+
+      .bottom-section {
+        margin-top: auto;
+      }
+
+      .footer-row {
+        margin-top: 45px; /* reduced */
+        display: flex;
+        align-items: flex-end;
+      }
+
+      /* LEFT TEXT */
+      .issued-text {
+        width: 55%;
+        font-size: 15px;
+        line-height: 1.5;
+      }
+
+      /* RIGHT SIGNATURES */
+      .signatures {
+        margin-left: auto;
+        margin-right: -35px; /* closer to border */
+        display: flex;
+        gap: 20px; /* reduced space between signatures */
+        align-items: flex-end;
+      }
+
+      /* .sign {
+        text-align: center;
+        width: 150px;
+      } */
+      .sign {
+        text-align: center;
+        width: 170px;
+      }
+
+      .sign-name {
+        font-size: 15px;
+        font-weight: bold;
+        white-space: nowrap;
+      }
+
+      .sign img {
+        width: 105px; /* reduced */
+        /* margin-bottom: 4px; */
+        margin-bottom: -4px;
+      }
+
+      .sign strong {
+        font-size: 15px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="certificate">
+      <div class="inner-border">
+        <!-- HEADER -->
+        <div class="header">
+          <div class="header-top">
+            <img src="<%= aitiflogo %>" class="logo" />
+
+            <div class="title-section">
+              <div class="main-title">
+                ALL INDIA TRADE AND INDUSTRIES FORUM (AITIF)
+              </div>
+
+              <div class="tagline">
+                Empowering Trade
+                <span>•</span>
+                Strengthening Industry
+                <span>•</span>
+                Driving Growth
+              </div>
+            </div>
+          </div>
+
+          <div class="office-row">
+            <div class="office">
+              <div class="office-title">📍DELHI OFFICE</div>
+              <!-- <div class="office-title">
+                <i class="fas fa-map-marker-alt"></i>
+                DELHI OFFICE
+              </div> -->
+              <div class="office-text">
+                81/A South Anarkali Extension<br />
+                Krishna Nagar<br />
+                Delhi - 110051
+              </div>
+            </div>
+
+            <div class="office">
+              <div class="office-title">📍BANGALORE OFFICE</div>
+              <!-- <div class="office-title">
+                <i class="fas fa-map-marker-alt"></i>
+                BANGALORE OFFICE
+              </div> -->
+              <div class="office-text">
+                No.19 Millennium Business Bay<br />
+                A.M Road, KPM New Extension<br />
+                Bangalore - 560002
+              </div>
+            </div>
+
+            <div class="contact">
+              <div>☎ +91 98184 07442</div>
+              <div>✉ aitifservices@gmail.com</div>
+              <div>🌐 https://aitif.in/membership</div>
+            </div>
+          </div>
+
+          <div class="header-divider"></div>
+          <div class="leadership-strip">
+            <div class="leader">
+              <div class="leader-name">C. VENKATESH</div>
+
+              <div class="leader-designation">National President</div>
+            </div>
+
+            <div class="leader-divider"></div>
+
+            <div class="leader">
+              <div class="leader-name">J. P. MODI</div>
+
+              <div class="leader-designation">National Vice President</div>
+            </div>
+
+            <div class="leader-divider"></div>
+
+            <div class="leader">
+              <div class="leader-name">SUKHVINDER SINGH</div>
+
+              <div class="leader-designation">National General Secretary</div>
+            </div>
+          </div>
+
+          <div class="leadership-bottom">
+            <div class="line"></div>
+
+            <!-- <div class="ornament">❖</div> -->
+            <div class="ornament">
+              <img src="<%= aitiflogo %>" class="middle-logo" />
+            </div>
+
+            <div class="line"></div>
+          </div>
+        </div>
+
+        <!-- CONTENT -->
+        <!-- CONTENT -->
+        <div class="content">
+          <div>This is to certify that</div>
+
+          <div class="company"><%= companyName %></div>
+
+          <div class="proprietor">
+            (Proprietor / Partner:
+            <strong><%= proprietors %></strong>)
+          </div>
+
+          <div class="membership-text">
+            has been enrolled to
+            <strong><%= membershipType %></strong>
+            <br />
+            and is entitled to all the privileges of membership as set forth in
+            the Bylaws of the All India Trade and Industries Forum.
+          </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="bottom-section">
+          <div class="footer-row">
+            <!-- LEFT TEXT -->
+            <!-- <div class="issued-text">
+              In testimony thereof we have hereunto set our hands and affixed
+              the seal of the Forum on this day
+              <strong><%= issuedDate %></strong>.
+            </div> -->
+            <div class="issued-text">
+              In testimony thereof we have hereunto set our hands <br />
+              and affixed the seal of the Forum on this day <br />
+              <strong><%= issuedDate %></strong>.
+            </div>
+
+            <!-- SIGNATURES -->
+            <div class="signatures">
+              <div class="sign">
+                <img src="<%= presidentSign %>" />
+                <!-- <div><strong>C. VENKATESH</strong></div> -->
+                <div class="sign-name">C. VENKATESH</div>
+                <div>President</div>
+              </div>
+
+              <!-- <div class="sign">
+                <img src="<%= secretarySign %>" />
+                <div><strong>SATHYA PRAVEEN</strong></div>
+                <div>General Secretary</div>
+              </div> -->
+              <div class="sign">
+                <img src="<%= seniorVPSign %>" />
+                <!-- <div><strong>J P MODI</strong></div> -->
+                <div class="sign-name">J P MODI</div>
+                <div>Senior Vice President</div>
+              </div>
+              <div class="sign">
+                <img src="<%= genSecNew %>" />
+                <div class="sign-name">SUKHVINDER SINGH</div>
+                <div>General Secretary</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
